@@ -45687,9 +45687,7 @@ function swapRows(rowA, rowB) {
     // Show comparison animation
     showRowSwapComparison(rowA, rowB);
     
-    // Auto-restore after 20 seconds
-    startSwapCountdown();
-    
+        
     return true;
 }
 
@@ -45741,55 +45739,12 @@ function swapCols(colA, colB) {
     // Show comparison animation
     showColSwapComparison(colA, colB);
     
-    // Auto-restore after 20 seconds
-    startSwapCountdown();
-    
+        
     return true;
 }
 
 function showRowSwapComparison(rowA, rowB) {
-    isSwapAnimating = true;
-    const container = domCache.matrixVisual;
-    const original = swapOriginalMatrix;
-    const current = matrix2D;
-    
-    const comparisonHTML = `
-        <div class="comparison-container">
-            <div style="text-align: center; margin-bottom: 15px;">
-                <i class="fas fa-arrows-alt-v" style="color: #3498db; font-size: 28px;"></i>
-                <strong style="color: #3498db; font-size: 20px;"> Row Swap Operation</strong>
-                <p style="color: #ecf0f1;">Swapping Row ${rowA} ↔ Row ${rowB}</p>
-            </div>
-            
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
-                <!-- Original Matrix -->
-                <div style="flex: 1; min-width: 260px; background: rgba(52,152,219,0.15); border-radius: 20px; padding: 12px; border: 2px solid #3498db;">
-                    <h5 style="color: #3498db; text-align: center;">📋 BEFORE SWAP</h5>
-                    <div id="swapOriginalMatrix">${renderMatrixWithRowHighlight(original, rowA, rowB, 'swap-original')}</div>
-                </div>
-                
-                <div style="display: flex; align-items: center; font-size: 40px; color: #27ae60;">
-                    <i class="fas fa-exchange-alt fa-bounce"></i>
-                </div>
-                
-                <!-- After Swap Matrix -->
-                <div style="flex: 1; min-width: 260px; background: rgba(46,204,113,0.15); border-radius: 20px; padding: 12px; border: 2px solid #e74c3c;">
-                    <h5 style="color: #e74c3c; text-align: center;">✅ AFTER SWAP</h5>
-                    <div id="swapAfterMatrix">${renderMatrixWithRowHighlight(current, rowA, rowB, 'swap-after')}</div>
-                </div>
-            </div>
-            
-            <div class="countdown-timer" style="display: block; text-align: center; margin-top: 15px;">
-                <i class="fas fa-clock"></i> Auto-restoring original matrix in <span id="swapCountdown">20</span> seconds...
-                <button id="cancelSwapRestore" style="margin-left: 10px; background: #e74c3c; border: none; border-radius: 20px; padding: 3px 12px;">
-                    <i class="fas fa-times"></i> Cancel & Keep Swap
-                </button>
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = comparisonHTML;
-    animateRowsSwap(rowA, rowB);
+    startSwapStage('rows', rowA, rowB);
 }
 
 function renderMatrixWithRowHighlight(matrix, rowA, rowB, className) {
@@ -45820,42 +45775,7 @@ function renderMatrixWithRowHighlight(matrix, rowA, rowB, className) {
     return html;
 }
 function showColSwapComparison(colA, colB) {
-    isSwapAnimating = true;
-    const container = domCache.matrixVisual;
-    const original = swapOriginalMatrix;
-    const current = matrix2D;
-    
-    const comparisonHTML = `
-        <div class="comparison-container">
-            <div style="text-align: center; margin-bottom: 15px;">
-                <i class="fas fa-arrows-alt-h" style="color: #3498db; font-size: 28px;"></i>
-                <strong style="color: #3498db; font-size: 20px;"> Column Swap Operation</strong>
-                <p style="color: #ecf0f1;">Swapping Column ${colA} ↔ Column ${colB}</p>
-            </div>
-            
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
-                <div style="flex: 1; min-width: 260px; background: rgba(52,152,219,0.15); border-radius: 20px; padding: 12px; border: 2px solid #3498db;">
-                    <h5 style="color: #3498db; text-align: center;">📋 BEFORE SWAP</h5>
-                    <div id="swapOriginalMatrix">${renderMatrixWithColHighlight(original, colA, colB, 'swap-original')}</div>
-                </div>
-                <div style="display: flex; align-items: center; font-size: 40px; color: #27ae60;"><i class="fas fa-exchange-alt fa-bounce"></i></div>
-                <div style="flex: 1; min-width: 260px; background: rgba(46,204,113,0.15); border-radius: 20px; padding: 12px; border: 2px solid #e74c3c;">
-                    <h5 style="color: #e74c3c; text-align: center;">✅ AFTER SWAP</h5>
-                    <div id="swapAfterMatrix">${renderMatrixWithColHighlight(current, colA, colB, 'swap-after')}</div>
-                </div>
-            </div>
-            
-            <div class="countdown-timer" style="display: block; text-align: center; margin-top: 15px;">
-                <i class="fas fa-clock"></i> Auto-restoring in <span id="swapCountdown">20</span> seconds...
-                <button id="cancelSwapRestore" style="margin-left: 10px; background: #e74c3c; border: none; border-radius: 20px; padding: 3px 12px;">
-                    <i class="fas fa-times"></i> Cancel & Keep Swap
-                </button>
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = comparisonHTML;
-    animateColsSwap(colA, colB);
+    startSwapStage('cols', colA, colB);
 }
 
 function renderMatrixWithColHighlight(matrix, colA, colB, className) {
@@ -45928,10 +45848,211 @@ function animateColsSwap(colA, colB) {
     }, delay);
 }
 
+// ===== Animated swap stage (tiles fly along arcs, line by line, then restore) =====
+const SWAP_CELL = 56, SWAP_GAP = 14, SWAP_STEP = SWAP_CELL + SWAP_GAP, SWAP_PAD = 34;
+let swapAnimToken = 0;
+let swapStage = null;
+
+const swapSleep = ms => new Promise(r => setTimeout(r, ms));
+
+function swapMoveTile(tile, toLeft, toTop, arc, token) {
+    const fromLeft = parseFloat(tile.style.left), fromTop = parseFloat(tile.style.top);
+    const dx = toLeft - fromLeft, dy = toTop - fromTop;
+    // arc is perpendicular to the travel direction (dashed curve in the video)
+    const len = Math.hypot(dx, dy) || 1;
+    const mx = dx / 2 + (-dy / len) * arc, my = dy / 2 + (dx / len) * arc;
+    const anim = tile.animate([
+        { transform: 'translate(0,0) scale(1)' },
+        { transform: `translate(${mx}px,${my}px) scale(1.18)`, offset: 0.5 },
+        { transform: `translate(${dx}px,${dy}px) scale(1)` }
+    ], { duration: 750, easing: 'ease-in-out' });
+    return anim.finished.catch(() => {}).then(() => {
+        if (token !== swapAnimToken) return;
+        tile.style.left = toLeft + 'px';
+        tile.style.top = toTop + 'px';
+    });
+}
+
+function swapPos(i, j) {
+    return { left: SWAP_PAD + j * SWAP_STEP, top: SWAP_PAD + i * SWAP_STEP };
+}
+
+function swapSetCaption(code, status, color) {
+    if (!swapStage) return;
+    swapStage.code.textContent = code;
+    swapStage.status.textContent = status;
+    swapStage.status.style.color = color || '#3498db';
+}
+
+function swapPaintTiles(st, final) {
+    // colours follow the *position*: swapped column/row = green(A) / blue(B)
+    st.tiles.forEach(row => row.forEach(t => {
+        const pos = t._pos;
+        const key = st.type === 'cols' ? pos.j : pos.i;
+        const hi = key === st.a || key === st.b;
+        t.style.opacity = hi ? '1' : '0.55';
+        t.style.background = !hi ? 'linear-gradient(145deg,#ffffff,#e9edf2)'
+            : (key === st.a ? 'linear-gradient(145deg,#2ecc71,#1e9e55)' : 'linear-gradient(145deg,#3498db,#2272a8)');
+        t.style.color = hi ? '#fff' : '#34495e';
+        t.style.border = '2px solid #f1c40f';
+    }));
+}
+
+function swapDrawArc(st, p1, p2, color, bend) {
+    const c = SWAP_CELL / 2;
+    const x1 = p1.left + c, y1 = p1.top + c, x2 = p2.left + c, y2 = p2.top + c;
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+    const cx = mx + (-(y2 - y1) / len) * bend * 2, cy = my + ((x2 - x1) / len) * bend * 2;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-dasharray', '6 5');
+    st.svg.appendChild(path);
+    path.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0.25 }], { duration: 900, fill: 'forwards' });
+    return path;
+}
+
+async function swapPlay(st, token, reverse) {
+    const { type, a, b, rows, cols } = st;
+    const lines = type === 'cols' ? rows : cols;
+    const order = [...Array(lines).keys()];
+    if (reverse) order.reverse();
+    const lineName = type === 'cols' ? 'row' : 'column';
+    for (const k of order) {
+        if (token !== swapAnimToken) return false;
+        const iA = type === 'cols' ? k : a, jA = type === 'cols' ? a : k;
+        const iB = type === 'cols' ? k : b, jB = type === 'cols' ? b : k;
+        // tiles currently sitting at those two cells
+        const tA = st.tiles[iA][jA], tB = st.tiles[iB][jB];
+        const pA = swapPos(iA, jA), pB = swapPos(iB, jB);
+        const idx = type === 'cols' ? `[${k}][${a}], matrix[${k}][${b}]` : `[${a}][${k}], matrix[${b}][${k}]`;
+        swapSetCaption(`swap(matrix${idx})`,
+            `${reverse ? '↺ Restoring original order' : `Swapping ${lineName} ${k}`}`,
+            reverse ? '#e67e22' : '#3498db');
+        // highlight the line label
+        st.labels.forEach(l => l.style.color = '#7f8c8d');
+        const lab = st.lineLabels[k]; if (lab) lab.style.color = '#e67e22';
+        tA.style.zIndex = tB.style.zIndex = 5;
+        swapDrawArc(st, pA, pB, '#2ecc71', 14);
+        swapDrawArc(st, pB, pA, '#3498db', 14);
+        await Promise.all([
+            swapMoveTile(tA, pB.left, pB.top, -30, token),
+            swapMoveTile(tB, pA.left, pA.top, -30, token)
+        ]);
+        if (token !== swapAnimToken) return false;
+        tA.style.zIndex = tB.style.zIndex = 1;
+        // update grid bookkeeping
+        st.tiles[iA][jA] = tB; st.tiles[iB][jB] = tA;
+        tA._pos = { i: iB, j: jB }; tB._pos = { i: iA, j: jA };
+        swapPaintTiles(st);
+        await swapSleep(180);
+    }
+    st.labels.forEach(l => l.style.color = '#7f8c8d');
+    return true;
+}
+
+function startSwapStage(type, a, b) {
+    isSwapAnimating = true;
+    const token = ++swapAnimToken;
+    const container = domCache.matrixVisual;
+    const orig = swapOriginalMatrix;
+    const rows = orig.length, cols = orig[0].length;
+    const W = SWAP_PAD * 2 + cols * SWAP_STEP - SWAP_GAP, H = SWAP_PAD * 2 + rows * SWAP_STEP - SWAP_GAP;
+    const isCol = type === 'cols';
+    container.innerHTML = `
+        <div class="comparison-container" style="text-align:center;width:100%;grid-column:1/-1;align-self:stretch;flex:1 1 100%;">
+            <div style="margin-bottom:8px;">
+                <i class="fas fa-${isCol ? 'arrows-alt-h' : 'arrows-alt-v'}" style="color:#3498db;font-size:24px;"></i>
+                <strong style="color:#3498db;font-size:20px;"> ${isCol ? 'Column' : 'Row'} Swap Operation</strong>
+                <div style="color:#7f8c8d;font-size:12px;">Swapping ${isCol ? 'column' : 'row'} ${a} ↔ ${isCol ? 'column' : 'row'} ${b} ${isCol ? 'row by row' : 'column by column'}</div>
+            </div>
+            <div id="swapBadge" style="height:24px;"></div>
+            <div id="swapStage" style="position:relative;margin:0 auto;width:${W}px;height:${H}px;"></div>
+            <div id="swapCode" style="display:inline-block;margin-top:12px;padding:6px 16px;background:#fff;border:1px solid #dfe4ea;border-radius:8px;font-family:monospace;font-size:13px;color:#2c3e50;box-shadow:0 1px 4px rgba(0,0,0,.08);"></div>
+            <div id="swapStatus" style="margin-top:6px;font-size:12px;font-weight:600;">Original matrix</div>
+            <div class="countdown-timer" style="display:none;margin-top:10px;">
+                <i class="fas fa-clock"></i> Auto-restoring original matrix in <span id="swapCountdown">6</span> seconds...
+                <button id="cancelSwapRestore" style="margin-left:10px;background:#e74c3c;border:none;border-radius:20px;padding:3px 12px;color:#fff;">
+                    <i class="fas fa-times"></i> Cancel & Keep Swap
+                </button>
+            </div>
+        </div>`;
+    const stageEl = document.getElementById('swapStage');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:0;overflow:visible;';
+    stageEl.appendChild(svg);
+    const labels = [], lineLabels = [];
+    const mkLabel = (txt, left, top, w, isLineAxis, idx) => {
+        const l = document.createElement('div');
+        l.textContent = txt;
+        l.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${w}px;font-size:11px;font-weight:700;color:#7f8c8d;text-align:center;`;
+        stageEl.appendChild(l); labels.push(l);
+        if (isLineAxis) lineLabels[idx] = l;
+    };
+    for (let j = 0; j < cols; j++) mkLabel(`col ${j}`, swapPos(0, j).left, 8, SWAP_CELL, !isCol, j);
+    for (let i = 0; i < rows; i++) mkLabel(`${i}`, 2, swapPos(i, 0).top + SWAP_CELL / 2 - 7, 24, isCol, i);
+    // swapped axis labels coloured green (A) / blue (B)
+    labels.forEach(l => {
+        const m = l.textContent.match(/^col (\d+)$/);
+        const idx = m ? +m[1] : (/^\d+$/.test(l.textContent) ? +l.textContent : -1);
+        const axisIsCols = !!m;
+        if (axisIsCols === isCol && (idx === a || idx === b)) l.dataset.hi = idx === a ? 'a' : 'b';
+    });
+    const tiles = [];
+    for (let i = 0; i < rows; i++) {
+        tiles[i] = [];
+        for (let j = 0; j < cols; j++) {
+            const t = document.createElement('div');
+            t.textContent = orig[i][j];
+            const p = swapPos(i, j);
+            t.style.cssText = `position:absolute;left:${p.left}px;top:${p.top}px;width:${SWAP_CELL}px;height:${SWAP_CELL}px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.2);z-index:1;`;
+            t._pos = { i, j };
+            stageEl.appendChild(t);
+            tiles[i][j] = t;
+        }
+    }
+    const st = swapStage = {
+        type, a, b, rows, cols, tiles, svg, labels, lineLabels,
+        code: document.getElementById('swapCode'),
+        status: document.getElementById('swapStatus')
+    };
+    swapPaintTiles(st);
+    swapSetCaption(isCol ? `for r in rows: swap(matrix[r][${a}], matrix[r][${b}])` : `for c in cols: swap(matrix[${a}][c], matrix[${b}][c])`, 'Original matrix', '#7f8c8d');
+
+    (async () => {
+        await swapSleep(900);
+        if (token !== swapAnimToken) return;
+        if (!(await swapPlay(st, token, false))) return;
+        const n = isCol ? rows : cols;
+        document.getElementById('swapBadge').innerHTML = `<span style="background:#27ae60;color:#fff;border-radius:14px;padding:3px 14px;font-size:12px;font-weight:700;">✓ ${isCol ? 'Columns' : 'Rows'} swapped</span>`;
+        swapSetCaption(`done: ${n} swaps, O(${isCol ? 'rows' : 'cols'}) time, O(1) space`, '✓ Swap complete', '#27ae60');
+        addLog(`✨ Animated: ${isCol ? 'Column' : 'Row'} ${a} and ${isCol ? 'Column' : 'Row'} ${b} swapped positions`, 'info');
+        startSwapCountdown();
+    })();
+}
+
+async function swapAnimatedRestore() {
+    const st = swapStage, token = swapAnimToken;
+    if (!st || !document.getElementById('swapStage')) return restoreOriginalAfterSwap();
+    const badge = document.getElementById('swapBadge'); if (badge) badge.innerHTML = '';
+    const ok = await swapPlay(st, token, true);
+    if (!ok) return;
+    swapSetCaption(st.type === 'cols' ? `for r in rows: swap(matrix[r][${st.a}], matrix[r][${st.b}])` : `for c in cols: swap(matrix[${st.a}][c], matrix[${st.b}][c])`, 'Original matrix', '#7f8c8d');
+    await swapSleep(900);
+    if (token !== swapAnimToken) return;
+    restoreOriginalAfterSwap();
+}
+
 function startSwapCountdown() {
     if (swapTimeout) clearTimeout(swapTimeout);
     
-    let seconds = 20;
+    let seconds = 6;
+    const cdBox = document.querySelector('#swapCountdown')?.parentElement;
+    if (cdBox) cdBox.style.display = 'block';
     const timerInterval = setInterval(() => {
         seconds--;
         const timerSpan = document.getElementById('swapCountdown');
@@ -45942,8 +46063,11 @@ function startSwapCountdown() {
     window.swapTimerInterval = timerInterval;
     
     swapTimeout = setTimeout(() => {
-        restoreOriginalAfterSwap();
-    }, 20000);
+        if (window.swapTimerInterval) clearInterval(window.swapTimerInterval);
+        const box = document.querySelector('#swapCountdown')?.parentElement;
+        if (box) box.style.display = 'none';
+        swapAnimatedRestore();
+    }, 6000);
     
     setTimeout(() => {
         const cancelBtn = document.getElementById('cancelSwapRestore');
@@ -45961,6 +46085,8 @@ function startSwapCountdown() {
 }
 
 function restoreOriginalAfterSwap() {
+    swapAnimToken++;
+    swapStage = null;
     if (window.swapTimerInterval) clearInterval(window.swapTimerInterval);
     
     if (swapOriginalMatrix && swapOriginalMatrix.length > 0) {
