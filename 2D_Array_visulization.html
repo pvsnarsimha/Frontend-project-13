@@ -15327,8 +15327,14 @@ function solveLinearSystemSVD(A, b) {
     // Show visualization with steps
     showSvdLinearEqVisualization(A, b, U, Sigma, V, x);
     
-    // Start auto-restore timer
-    startSvdLinearEqCountdown();
+    // Talking guide narrates the real numbers, then the auto-restore timer starts
+    if (window.DecompTeacher) {
+        DecompTeacher.start({ method: 'svd', container: domCache.matrixVisual, A, b, U, Sigma, V, x,
+            onReplay: () => { if (svdTimeout) clearTimeout(svdTimeout); if (svdTimerInterval) clearInterval(svdTimerInterval); },
+            onDone: startSvdLinearEqCountdown });
+    } else {
+        startSvdLinearEqCountdown();
+    }
     
     addLog(`✅ Solution found: x = [${x.map(val => val.toFixed(6)).join(', ')}]`, 'success');
     addLog(`📊 SVD is the most numerically stable method - works for any matrix!`, 'info');
@@ -17022,8 +17028,14 @@ function solveLinearSystemQR(A, b) {
     // Show visualization with steps
     showQrLinearEqVisualization(A, b, Q, R, y, x);
     
-    // Start auto-restore timer
-    startQrLinearEqCountdown();
+    // Talking guide narrates the real numbers, then the auto-restore timer starts
+    if (window.DecompTeacher) {
+        DecompTeacher.start({ method: 'qr', container: domCache.matrixVisual, A, b, Q, R, y, x,
+            onReplay: () => { if (qrTimeout) clearTimeout(qrTimeout); if (qrTimerInterval) clearInterval(qrTimerInterval); },
+            onDone: startQrLinearEqCountdown });
+    } else {
+        startQrLinearEqCountdown();
+    }
     
     addLog(`✅ Solution found: x = [${x.map(val => val.toFixed(4)).join(', ')}]`, 'success');
 }
@@ -18273,8 +18285,14 @@ function solveLinearSystemLU(A, b) {
     // Show visualization with steps
     showLuLinearEqVisualization(A, b, L, U, y, x);
     
-    // Start auto-restore timer
-    startLuLinearEqCountdown();
+    // Talking guide narrates the real numbers, then the auto-restore timer starts
+    if (window.DecompTeacher) {
+        DecompTeacher.start({ method: 'lu', container: domCache.matrixVisual, A, b, L, U, y, x,
+            onReplay: () => { if (luLinearEqTimeout) clearTimeout(luLinearEqTimeout); if (window.luLinearEqTimerInterval) clearInterval(window.luLinearEqTimerInterval); },
+            onDone: startLuLinearEqCountdown });
+    } else {
+        startLuLinearEqCountdown();
+    }
     
     addLog(`✅ Solution found: x = [${x.map(val => val.toFixed(4)).join(', ')}]`, 'success');
 }
@@ -121067,6 +121085,229 @@ window.NeighborTeacher = (function () {
         });
         panel.addEventListener('change', e => { if (e.target.dataset.a === 'speed') speed = parseFloat(e.target.value); });
         go();
+    }
+    return {
+        start, say, boySVG, handSVG,
+        stopSpeech: () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); },
+        getMuted: () => muted, setMuted: v => { muted = v; },
+        getSpeed: () => speed, setSpeed: v => { speed = v; }
+    };
+})();
+</script>
+
+<!-- ========== Decomposition Teacher: funny talking guide for LU / QR / SVD ========== -->
+<style>
+.dt-panel{flex-wrap:wrap;max-width:980px;position:relative;align-items:flex-start}
+.dt-top{display:flex;align-items:center;gap:14px;flex:1 1 100%}
+.dt-lower{flex:1 1 100%;background:#0f172a;border-radius:14px;padding:10px 12px;color:#e2e8f0}
+.dt-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.dt-pill{background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:999px;padding:2px 12px;font-size:12px;cursor:pointer;font-weight:700}
+.dt-pill.on{background:#facc15;color:#1e293b;border-color:#facc15}
+.dt-pill.done{color:#4ade80;border-color:#166534}
+.dt-board{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;min-height:96px;position:relative}
+.dt-mx{display:inline-flex;flex-direction:column;align-items:center;margin:4px 8px}
+.dt-mx small{color:#94a3b8;font-weight:700;font-size:12px;margin-bottom:2px}
+.dt-mx table{border-left:3px solid #94a3b8;border-right:3px solid #94a3b8;border-radius:8px;border-collapse:separate;border-spacing:3px}
+.dt-mx td{padding:3px 8px;font:700 14px/1.3 monospace;text-align:center;border-radius:6px;min-width:34px;color:#e2e8f0;transition:background .4s}
+.dt-op{font:800 26px/1 sans-serif;color:#facc15;margin:0 2px}
+.dt-lines{font:700 14px/1.7 monospace;color:#e2e8f0;text-align:left}
+.dt-lines div{animation:dtIn .5s both}
+@keyframes dtIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1}}
+.dt-bar{height:14px;border-radius:7px;background:linear-gradient(90deg,#fb923c,#facc15);margin:3px 0;min-width:4px;transition:width .6s}
+.dt-formula{display:inline-block;margin-top:6px;padding:2px 12px;border-radius:999px;background:#2c3e50;color:#f1c40f;font:700 13px/1.7 monospace}
+.dt-hand{z-index:30}
+</style>
+<script>
+window.DecompTeacher = (function () {
+    const NT = window.NeighborTeacher;
+    const C = { gold: '#facc15', green: '#4ade80', red: '#f87171', blue: '#60a5fa', purple: '#c084fc', orange: '#fb923c', teal: '#2dd4bf' };
+    let run = 0;
+
+    const fmt = v => {
+        if (typeof v !== 'number' || !isFinite(v)) return String(v);
+        const r = Math.round(v * 1000) / 1000;
+        return Object.is(r, -0) ? '0' : (Number.isInteger(r) ? String(r) : r.toFixed(3).replace(/0+$/, '').replace(/\.$/, ''));
+    };
+    const vec = v => v.map(a => [a]);
+    const T = M => M[0].map((_, j) => M.map(r => r[j]));
+    const sub = i => String(i + 1);
+    const mx = (M, label, hl) => `<div class="dt-mx"><small>${label || ''}</small><table>${M.map((r, i) => `<tr>${r.map((v, j) => {
+        const c = hl && hl(i, j);
+        return `<td class="${c ? 'dt-hl' : ''}" style="${c ? `background:${c};color:#0f172a` : ''}">${fmt(+v)}</td>`;
+    }).join('')}</tr>`).join('')}</table></div>`;
+    const op = s => `<span class="dt-op">${s}</span>`;
+    const lines = arr => `<div class="dt-lines">${arr.map((l, i) => `<div style="animation-delay:${i * 0.25}s">${l}</div>`).join('')}</div>`;
+    const list = (arr, n = 4) => arr.slice(0, n).join(', ') + (arr.length > n ? ' and more' : '');
+
+    // ---------- lesson scripts built from the REAL numbers ----------
+    function luSteps(d) {
+        const { A, b, L, U, y, x } = d, n = A.length;
+        const xs = A.map((_, i) => 'x' + sub(i));
+        const mults = [];
+        for (let i = 1; i < n; i++) mults.push(`l${sub(i)}1 = ${fmt(L[i][0])}`);
+        const resid = Math.max(...A.map((r, i) => Math.abs(r.reduce((s, a, j) => s + a * x[j], 0) - b[i])));
+        return [
+            { t: 'Problem', f: 'A x = b',
+              say: 'Hi! I am the Lazy Chef. Solving A x equals b the hard way is exhausting, so I will split A into two easy triangles, L and U. Watch my finger!',
+              board: mx(A, 'A') + op('×') + mx(vec(xs), 'x') + op('=') + mx(vec(b), 'b') },
+            { t: 'Multipliers', f: 'l_ik = a_ik / a_kk',
+              say: `The first pivot is ${fmt(U[0][0])}. For every row below it, I write a sticky note: ${list(mults)}. These notes go into L, so I never forget how I chopped.`,
+              board: mx(A, 'A  (pivot column)', (i, j) => j === 0 && i === 0 ? C.gold : (j === 0 ? C.red : null)) + op('→') + mx(L, 'L  (sticky notes)', (i, j) => j === 0 && i > 0 ? C.green : null) },
+            { t: 'Chop', f: 'a_ij ← a_ij − l_ik · a_kj',
+              say: 'Now I chop. Each row minus its multiplier times the pivot row. Everything under each pivot turns into zero. Repeat for every pivot and what is left is U, the prepped food.',
+              board: mx(U, 'U  (prepped food)', (i, j) => i > j ? C.red : (i === j ? C.gold : null)) },
+            { t: 'Split', f: 'A = L · U',
+              say: 'Magic! A equals L times U. Notes times prepped food. Two easy triangles instead of one scary square.',
+              board: mx(L, 'L', (i, j) => i > j ? C.green : null) + op('×') + mx(U, 'U', (i, j) => i <= j ? C.blue : null) + op('=') + mx(A, 'A') },
+            { t: 'Forward ↓', f: 'y_i = b_i − Σ l_ij·y_j',
+              say: `Order arrives! Forward substitution goes from the top row down. ${y.slice(0, 3).map((v, i) => `y${sub(i)} is ${fmt(v)}`).join(', ')}${n > 3 ? ' and so on' : ''}. Each row only needs answers from the rows above it.`,
+              board: lines(y.map((v, i) => `y${sub(i)} = ${fmt(b[i])}${L[i].slice(0, i).map((l, j) => ` − ${fmt(l)}·${fmt(y[j])}`).join('')} = <b style="color:${C.gold}">${fmt(v)}</b>`)) + mx(vec(y), 'y', () => C.gold) },
+            { t: 'Backward ↑', f: 'x_i = (y_i − Σ u_ij·x_j) / u_ii',
+              say: `Now serve it from the bottom row up. ${x.map((v, i) => `x${sub(i)} is ${fmt(v)}`).slice(0, 4).join(', ')}. Check: A times x matches b within ${resid.toExponential(1)}. New order b? Redo only these last two steps. Lazy wins!`,
+              board: lines(x.map((v, i) => {
+                  const idx = n - 1 - i; return `x${sub(idx)} = (${fmt(y[idx])}${U[idx].slice(idx + 1).map((u, j) => ` − ${fmt(u)}·${fmt(x[idx + 1 + j])}`).join('')}) / ${fmt(U[idx][idx])} = <b style="color:${C.green}">${fmt(x[idx])}</b>`;
+              })) + mx(vec(x), 'x', () => C.green) }
+        ];
+    }
+
+    function qrSteps(d) {
+        const { A, b, Q, R, y, x } = d, n = A.length;
+        const shadows = [];
+        for (let k = 1; k < n; k++) for (let j = 0; j < k; j++) shadows.push(`r${sub(j)}${sub(k)} = ${fmt(R[j][k])}`);
+        const diag = R.map((r, i) => `r${sub(i)}${sub(i)} = ${fmt(r[i])}`);
+        return [
+            { t: 'Problem', f: 'A = Q · R',
+              say: 'Hello! Your columns are crooked sticks. I will tidy them into perfectly straight shelves of length one. That is Q. The record of how crooked they were goes into R.',
+              board: mx(A, 'A  (columns = sticks)', (i, j) => j % 2 === 0 ? 'rgba(96,165,250,.55)' : 'rgba(251,146,60,.55)') },
+            { t: 'First stick', f: 'r11 = ‖a1‖   q1 = a1 / r11',
+              say: `Take the first column. Its length is ${fmt(R[0][0])}. Shrink it to exactly one unit and call it q one. That length goes into R.`,
+              board: mx(Q, 'Q', (i, j) => j === 0 ? C.green : null) + op('×') + mx(R, 'R', (i, j) => i === 0 && j === 0 ? C.gold : null) },
+            { t: 'Shadows', f: 'r_jk = q_jᵀ · a_k',
+              say: n > 1 ? `For the next column I shine a flashlight along each shelf I already built. The shadow lengths are ${list(shadows)}. They fill the upper part of R.` : 'With one column there are no shadows to measure.',
+              board: mx(R, 'R  (shadows)', (i, j) => i < j ? C.gold : null) },
+            { t: 'Sweep', f: 'v_k = a_k − Σ r_jk q_j   q_k = v_k / ‖v_k‖',
+              say: n > 1 ? `Sweep sweep! Subtract the shadows, and what is left stands at exactly ninety degrees. Shrink it to length one. The leftover lengths are ${list(diag.slice(1))}.` : 'Nothing to sweep. The only shelf is already straight.',
+              board: mx(Q, 'Q  (straight shelves)', () => C.green) + op('×') + mx(R, 'R  (diagonal = leftover lengths)', (i, j) => i === j ? C.blue : null) },
+            { t: 'Q × R', f: 'A = Q · R',
+              say: 'So A equals Q times R. Q is straight shelves, R says how crooked A used to be. Q never stretches errors, which makes this method very stable.',
+              board: mx(Q, 'Q', () => 'rgba(74,222,128,.55)') + op('×') + mx(R, 'R', (i, j) => i <= j ? 'rgba(96,165,250,.55)' : null) + op('=') + mx(A, 'A') },
+            { t: 'Solve', f: 'R x = Qᵀ b',
+              say: `To solve, flip b with Q transpose and get y equals ${list(y.map(fmt), 3)}. Then climb up the triangle R. The answer is x equals ${list(x.map(fmt), 4)}. No inverse needed!`,
+              board: lines([`y = Qᵀ·b = [ ${y.map(fmt).join(', ')} ]`].concat(x.map((v, i) => {
+                  const idx = n - 1 - i; return `x${sub(idx)} = (${fmt(y[idx])}${R[idx].slice(idx + 1).map((r, j) => ` − ${fmt(r)}·${fmt(x[idx + 1 + j])}`).join('')}) / ${fmt(R[idx][idx])} = <b style="color:${C.green}">${fmt(x[idx])}</b>`;
+              }))) + mx(vec(x), 'x', () => C.green) }
+        ];
+    }
+
+    function svdSteps(d) {
+        const { A, b, U, Sigma, V, x } = d, k = Sigma.length;
+        const smax = Math.max(...Sigma), smin = Math.min(...Sigma);
+        const tol = 1e-9 * Math.max(smax, 1);
+        const cond = smin > tol ? smax / smin : Infinity;
+        const bars = Sigma.map((s, i) => `<div style="display:flex;align-items:center;gap:8px"><span style="width:34px;font:700 13px monospace">σ${sub(i)}</span><div class="dt-bar" style="width:${Math.max(4, 260 * s / (smax || 1))}px"></div><span style="font:700 13px monospace">${fmt(s)}</span></div>`).join('');
+        const Ut = T(U), Utb = Ut.map(r => r.reduce((s, a, i) => s + a * b[i], 0));
+        const sInvUtb = Utb.map((v, i) => Sigma[i] > tol ? v / Sigma[i] : 0);
+        const diagM = Sigma.map((s, i) => Sigma.map((_, j) => i === j ? s : 0));
+        return [
+            { t: 'Problem', f: 'A = U Σ Vᵀ',
+              say: 'Welcome to the Pizza Machine! Every matrix does just three things: spin the dough, stretch it, spin it again. That is A equals U Sigma V transpose.',
+              board: mx(A, 'A  (the machine)') },
+            { t: 'Spin 1 (Vᵀ)', f: 'AᵀA vᵢ = σᵢ² vᵢ',
+              say: 'First spin with V transpose. Its rows are the special directions of the dough, found from the eigenvectors of A transpose A.',
+              board: mx(T(V), 'Vᵀ  (spin 1)', () => C.blue) },
+            { t: 'Stretch (Σ)', f: 'σᵢ = √λᵢ',
+              say: `Next, roll it out with a rolling pin. The stretch factors, called singular values, are ${list(Sigma.map(fmt), 4)}. Biggest first.`,
+              board: mx(diagM, 'Σ  (stretch)', (i, j) => i === j ? C.orange : null) + `<div style="min-width:260px">${bars}</div>` },
+            { t: 'Spin 2 (U)', f: 'uᵢ = A vᵢ / σᵢ',
+              say: 'Then spin again with U to lay the dough on the plate. Each column of U comes from A times a column of V, divided by its sigma.',
+              board: mx(U, 'U  (spin 2)', () => C.purple) },
+            { t: 'Solve', f: 'x = V Σ⁺ Uᵀ b',
+              say: `To solve A x equals b: spin b with U transpose, divide by each sigma, spin back with V. Tiny sigmas are crumbs, so we bin them. The answer is x equals ${list(x.map(fmt), 4)}.`,
+              board: lines([`Uᵀ·b = [ ${Utb.map(fmt).join(', ')} ]`, `Σ⁺·(Uᵀ·b) = [ ${sInvUtb.map(fmt).join(', ')} ]`, `x = V·(…) = [ <b style="color:${C.green}">${x.map(fmt).join(', ')}</b> ]`]) + mx(vec(x), 'x', () => C.green) },
+            { t: 'Health', f: 'cond(A) = σmax / σmin',
+              say: cond === Infinity
+                  ? 'Health check: the smallest sigma is nearly zero, so the matrix is almost singular. Those crumbs get binned, and SVD still gives the best possible answer.'
+                  : `Health check: the condition number is ${fmt(cond)}. A big number means shaky answers. Keep the big sigmas, bin the tiny ones, and you get compression and noise removal for free.`,
+              board: `<div style="min-width:320px">${bars}</div>` + `<div class="dt-lines"><div>cond(A) = ${fmt(smax)} / ${fmt(smin)} = <b style="color:${C.gold}">${cond === Infinity ? '∞' : fmt(cond)}</b></div></div>` }
+        ];
+    }
+
+    const BUILD = { lu: luSteps, qr: qrSteps, svd: svdSteps };
+    const TITLE = { lu: 'LU · The Lazy Chef', qr: 'QR · Tidy Up the Shelves', svd: 'SVD · The Pizza Machine' };
+
+    function start(o) {
+        const container = o.container;
+        if (!container || !NT) { if (o.onDone) o.onDone(); return; }
+        run++;
+        const token = run;
+        NT.stopSpeech();
+        let steps;
+        try { steps = BUILD[o.method](o); } catch (e) { console.error(e); if (o.onDone) o.onDone(); return; }
+
+        const old = document.getElementById('dtPanel'); if (old) old.remove();
+        const panel = document.createElement('div');
+        panel.id = 'dtPanel'; panel.className = 'nbt-panel dt-panel';
+        panel.innerHTML = `<div class="dt-top">${NT.boySVG()}<div class="nbt-side">
+              <div class="nbt-bubble"><span class="nbt-text"></span><br><span class="nbt-chip dt-formula"></span></div>
+              <div class="nbt-ctrl"><b style="color:#92400e;font-size:13px;background:#fef3c7;border-radius:999px;padding:2px 10px">${TITLE[o.method]}</b>
+                <button data-a="replay">↻ Replay</button><button data-a="skip">⏭ Skip</button>
+                <button data-a="mute">${NT.getMuted() ? '🔇 Voice off' : '🔊 Voice on'}</button>
+                <select data-a="speed"><option value="0.7">Slow</option><option value="1">Normal</option><option value="1.5">Fast</option></select></div></div></div>
+            <div class="dt-lower"><div class="dt-pills">${steps.map((s, i) => `<span class="dt-pill" data-i="${i}">${i + 1}. ${s.t}</span>`).join('')}</div>
+              <div class="dt-board"></div></div>`;
+        container.prepend(panel);
+        panel.querySelector('select').value = String(NT.getSpeed());
+        const board = panel.querySelector('.dt-board');
+        const hand = document.createElement('div');
+        hand.className = 'nbt-hand dt-hand'; hand.innerHTML = NT.handSVG();
+        panel.appendChild(hand);
+        const arm = panel.querySelector('#nbtArm');
+        const alive = () => token === run && panel.isConnected;
+        let finished = false;
+        const finish = () => { if (finished) return; finished = true; if (o.onDone) o.onDone(); };
+
+        function show(i, speak) {
+            steps.forEach((_, k) => {
+                const p = panel.querySelector(`.dt-pill[data-i="${k}"]`);
+                p.classList.toggle('on', k === i); p.classList.toggle('done', k < i);
+            });
+            board.innerHTML = steps[i].board;
+            const hl = board.querySelector('.dt-hl');
+            if (hl) {
+                const pr = panel.getBoundingClientRect(), r = hl.getBoundingClientRect();
+                hand.style.transform = 'rotate(0deg)';
+                hand.style.left = (r.left - pr.left - 34) + 'px';
+                hand.style.top = (r.top - pr.top + r.height / 2) + 'px';
+                hand.classList.add('nbt-on');
+                arm.style.transform = 'rotate(25deg)';
+            } else { hand.classList.remove('nbt-on'); arm.style.transform = 'rotate(-20deg)'; }
+            return speak ? NT.say(panel, steps[i].say, steps[i].f) : (panel.querySelector('.nbt-text').textContent = steps[i].say, panel.querySelector('.nbt-chip').textContent = steps[i].f);
+        }
+        async function lesson(from) {
+            for (let i = from; i < steps.length; i++) {
+                if (!alive()) return;
+                await show(i, true);
+                if (!alive()) return;
+            }
+            if (alive()) { hand.classList.remove('nbt-on'); arm.style.transform = 'rotate(0deg)'; finish(); }
+        }
+        panel.addEventListener('click', e => {
+            const a = e.target.dataset && e.target.dataset.a, pill = e.target.closest && e.target.closest('.dt-pill');
+            if (a === 'mute') { NT.setMuted(!NT.getMuted()); e.target.textContent = NT.getMuted() ? '🔇 Voice off' : '🔊 Voice on'; if (NT.getMuted()) NT.stopSpeech(); }
+            if (a === 'skip') { run++; NT.stopSpeech(); panel.querySelector('.nbt-boy-wrap').classList.remove('nbt-talking'); show(steps.length - 1, false); hand.classList.remove('nbt-on'); finish(); }
+            if (a === 'replay') { if (o.onReplay) o.onReplay(); finished = false; start(o); }
+            if (pill) { run++; NT.stopSpeech(); const i = +pill.dataset.i; const t2 = ++run; panel.querySelector('.nbt-boy-wrap').classList.remove('nbt-talking'); setTimeout(() => { if (panel.isConnected) { o.__resume = t2; resumeAt(i, t2); } }, 50); }
+        });
+        panel.addEventListener('change', e => { if (e.target.dataset.a === 'speed') NT.setSpeed(parseFloat(e.target.value)); });
+        // jump to a step and keep narrating from there
+        function resumeAt(i, t2) {
+            const al = () => t2 === run && panel.isConnected;
+            (async () => {
+                for (let k = i; k < steps.length; k++) { if (!al()) return; await show(k, true); if (!al()) return; }
+                if (al()) { hand.classList.remove('nbt-on'); arm.style.transform = 'rotate(0deg)'; finish(); }
+            })();
+        }
+        lesson(0);
     }
     return { start };
 })();
