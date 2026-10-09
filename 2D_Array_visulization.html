@@ -120886,7 +120886,7 @@ window.Neighbors4DViz = (function () {
             btn: { replay: 'Replay animation', tour: 'Start auto tour', tourStop: 'Stop auto tour', on: '🔊 Sound on', off: '🔇 Sound off', test: '🔈 Test voice', clear: 'Clear & restore matrix' },
             rates: ['Speed: Very slow', 'Speed: Slow (clear)', 'Speed: Normal', 'Speed: Fast'],
             voiceAuto: 'Voice: Indian English (auto)', voiceNone: 'Voice: Indian English (not found, default)',
-            hint: '', empty: 'empty',
+            hint: '', chrome: '', empty: 'empty',
             say: {
                 intro: (r, c, v) => [`Selected cell: row ${r}, column ${c}.`, `Its value is ${v}.`, 'Let us find the four cells touching it.'],
                 dir: (d, nr, nc, v) => `${d.phrase}: ${d.move}, row ${nr}, column ${nc}. The value is ${v}.`,
@@ -120920,6 +120920,7 @@ window.Neighbors4DViz = (function () {
             rates: ['వేగం: చాలా నెమ్మదిగా', 'వేగం: నెమ్మదిగా (స్పష్టం)', 'వేగం: మామూలు', 'వేగం: వేగంగా'],
             voiceAuto: 'వాయిస్: తెలుగు (ఆటో)', voiceNone: 'వాయిస్: తెలుగు (ఈ పరికరంలో లేదు)',
             hint: 'ఈ పరికరంలో తెలుగు వాయిస్ లేదు, కాబట్టి శబ్దం రాదు కానీ తెలుగు క్యాప్షన్లు కనిపిస్తాయి. వాయిస్ కోసం Microsoft Edge వాడండి ("Shruti Online (Natural) – Telugu") లేదా Windows: Settings → Time & language → Speech → Add voices → Telugu.',
+            chrome: 'Chrome లో Windows లో తెలుగు వాయిస్ సాధారణంగా ఉండదు. ఈ పేజీని Microsoft Edge లో తెరవండి (అక్కడ తెలుగు వాయిస్ ఉంటుంది). ',
             empty: 'ఖాళీ',
             say: {
                 intro: (r, c, v) => [`ఎంచుకున్న గడి: రో ${r}, కాలమ్ ${c}.`, `దాని విలువ ${v}.`, 'ఇప్పుడు దీన్ని తాకే నాలుగు గడులను కనుగొందాం.'],
@@ -120954,6 +120955,7 @@ window.Neighbors4DViz = (function () {
             rates: ['गति: बहुत धीमी', 'गति: धीमी (साफ़)', 'गति: सामान्य', 'गति: तेज़'],
             voiceAuto: 'आवाज़: हिन्दी (ऑटो)', voiceNone: 'आवाज़: हिन्दी (इस डिवाइस में नहीं)',
             hint: 'इस डिवाइस में हिन्दी आवाज़ नहीं मिली, इसलिए आवाज़ नहीं आएगी लेकिन हिन्दी कैप्शन दिखेंगे। आवाज़ के लिए Microsoft Edge इस्तेमाल करें ("Swara Online (Natural) – Hindi") या Windows: Settings → Time & language → Speech → Add voices → Hindi।',
+            chrome: 'इस Chrome में हिन्दी आवाज़ नहीं मिली। इस पेज को Microsoft Edge में खोलें (वहाँ हिन्दी आवाज़ मिलती है)। ',
             empty: 'खाली',
             say: {
                 intro: (r, c, v) => [`चुना हुआ सेल: रो ${r}, कॉलम ${c}।`, `इसकी वैल्यू ${v} है।`, 'अब इसे छूने वाले चार सेल ढूँढते हैं।'],
@@ -121049,7 +121051,8 @@ window.Neighbors4DViz = (function () {
         if (hintEl) {
             const missing = lang !== 'en' && !vs.length;
             hintEl.style.display = missing ? 'block' : 'none';
-            hintEl.textContent = missing ? T.hint : '';
+            const isChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent);
+            hintEl.textContent = missing ? (isChrome ? T.chrome : '') + T.hint : '';
         }
     }
 
