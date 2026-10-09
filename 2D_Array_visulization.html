@@ -120840,6 +120840,7 @@ document.getElementById('lc723Btn')?.addEventListener('click', showCandyCrushSet
 .n4-dir.on{opacity:1;transform:none}
 .n4-dir b{display:block;color:var(--c);font-size:15px;letter-spacing:.5px}
 .n4-dir em{display:block;font-style:normal;color:#334155;font-size:13px;font-weight:600}
+.n4-caption{background:#0f172a;color:#fff;border-radius:14px;padding:12px 18px;margin-top:14px;font-size:19px;font-weight:700;line-height:1.4;text-align:center;min-height:30px}
 .n4-help{background:#f1f5f9;border-radius:14px;padding:10px 16px;margin-top:14px;color:#334155;font-size:14px;line-height:1.5}
 .n4-help summary{cursor:pointer;font-weight:800;color:#0f172a}
 .n4-help ol{margin:8px 0 2px 18px;padding:0}.n4-help li{margin-bottom:5px}
@@ -120869,31 +120870,51 @@ window.Neighbors4DViz = (function () {
     const say = v => (v === '' || v === null || v === undefined) ? 'empty' : String(v);
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    function speak(text) {
+    // Speaks ONE short sentence at a time (clearer, avoids Chrome cutting long speech), with a
+    // visible caption, a pause between sentences, and full volume.
+    let spGen = 0, capEl = null, rate = 0.85;
+    const RKEY = 'n4Rate';
+    try { const s = parseFloat(localStorage.getItem(RKEY)); if (s >= 0.5 && s <= 1.3) rate = s; } catch (e) { /* storage blocked */ }
+    const caption = t => { if (capEl && capEl.isConnected) capEl.textContent = t; };
+    const stopSpeech = () => { spGen++; if (window.speechSynthesis) window.speechSynthesis.cancel(); };
+
+    function speakOne(sentence, gen) {
         return new Promise(resolve => {
-            const est = text.length * 62 + 500;
+            const est = (sentence.length * 75 + 500) / rate;
             const synth = window.speechSynthesis;
             let done = false;
-            const fin = () => { if (!done) { done = true; resolve(); } };
             const t0 = Date.now();
-            const finMin = () => { const w = est * 0.55 - (Date.now() - t0); w > 0 ? setTimeout(fin, w) : fin(); };
+            const fin = () => { if (!done) { done = true; resolve(); } };
+            const finMin = () => { const w = est * 0.5 - (Date.now() - t0); w > 0 ? setTimeout(fin, w) : fin(); };
             if (!muted && synth && window.SpeechSynthesisUtterance) {
                 try {
-                    synth.cancel();
-                    const u = new SpeechSynthesisUtterance(text);
+                    synth.resume();
+                    const u = new SpeechSynthesisUtterance(sentence);
                     const v = pickVoice();
                     if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-IN'; }
-                    u.rate = 0.9; u.pitch = 1;
-                    u.onend = () => setTimeout(finMin, 150); u.onerror = finMin;
+                    u.rate = rate; u.pitch = 1; u.volume = 1;
+                    u.onend = finMin; u.onerror = finMin;
                     synth.speak(u);
-                    setTimeout(finMin, est * 2 + 2500);
+                    setTimeout(finMin, est * 2 + 3000);
                     return;
-                } catch (e) { /* fall through to timer */ }
+                } catch (e) { /* fall through to the timer */ }
             }
             setTimeout(fin, est);
         });
     }
-    const stopSpeech = () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); };
+    async function speak(text) {
+        const gen = ++spGen;
+        const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
+        for (const s of parts) {
+            const t = s.trim();
+            if (!t) continue;
+            if (gen !== spGen) return;
+            caption(t);
+            await speakOne(t, gen);
+            if (gen !== spGen) return;
+            await sleep(350);
+        }
+    }
 
     // ---- voice: Indian English (en-IN) by default, user can pick another ----
     const VKEY = 'n4Voice';
@@ -120933,6 +120954,7 @@ window.Neighbors4DViz = (function () {
                 <div class="n4-found" id="n4Found">&nbsp;</div>
               </div>
             </div>
+            <div class="n4-caption" id="n4Cap" aria-live="polite">Press <b>Replay animation</b> to hear the explanation.</div>
             <details class="n4-help" open><summary>New to this? How to read it</summary>
               <ol>
                 <li>Every cell has an address <b>(row, column)</b>. Counting starts at <b>0</b>, so (2, 2) means the 3rd row and 3rd column.</li>
@@ -120946,6 +120968,8 @@ window.Neighbors4DViz = (function () {
               <button id="n4Tour">Start auto tour</button>
               <button id="n4Mute">${muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
               <select id="n4Voice" title="Choose the voice"></select>
+              <select id="n4Rate" title="Speaking speed"><option value="0.65">Speed: Very slow</option><option value="0.85">Speed: Slow (clear)</option><option value="1">Speed: Normal</option><option value="1.2">Speed: Fast</option></select>
+              <button id="n4Test">🔈 Test voice</button>
               <button id="n4Clear" class="red">Clear &amp; restore matrix</button>
             </div></div>`;
         const grid = root.querySelector('#n4Grid');
@@ -121026,6 +121050,11 @@ window.Neighbors4DViz = (function () {
         root.querySelector('#n4Replay').onclick = () => { stopTour(); select(sel.r, sel.c); };
         root.querySelector('#n4Tour').onclick = () => { if (tour) { stopTour(); token++; stopSpeech(); } else runTour(); };
         root.querySelector('#n4Mute').onclick = e => { muted = !muted; e.target.textContent = muted ? '🔇 Sound off' : '🔊 Sound on'; if (muted) stopSpeech(); };
+        capEl = root.querySelector('#n4Cap');
+        const rsel = root.querySelector('#n4Rate');
+        rsel.value = String([0.65, 0.85, 1, 1.2].reduce((a, b) => Math.abs(b - rate) < Math.abs(a - rate) ? b : a));
+        rsel.onchange = () => { rate = parseFloat(rsel.value); try { localStorage.setItem(RKEY, String(rate)); } catch (e) { /* storage blocked */ } };
+        root.querySelector('#n4Test').onclick = () => { stopSpeech(); if (muted) { muted = false; root.querySelector('#n4Mute').textContent = '🔊 Sound on'; } speak('Hello. Can you hear me clearly? This is the Indian English voice. Up, down, left and right.'); };
         const vsel = root.querySelector('#n4Voice');
         fillVoiceSelect(vsel);
         if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => { if (vsel.isConnected) fillVoiceSelect(vsel); };
