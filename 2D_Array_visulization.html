@@ -15327,14 +15327,8 @@ function solveLinearSystemSVD(A, b) {
     // Show visualization with steps
     showSvdLinearEqVisualization(A, b, U, Sigma, V, x);
     
-    // Talking guide narrates the real numbers, then the auto-restore timer starts
-    if (window.DecompTeacher) {
-        DecompTeacher.start({ method: 'svd', container: domCache.matrixVisual, A, b, U, Sigma, V, x,
-            onReplay: () => { if (svdTimeout) clearTimeout(svdTimeout); if (svdTimerInterval) clearInterval(svdTimerInterval); },
-            onDone: startSvdLinearEqCountdown });
-    } else {
-        startSvdLinearEqCountdown();
-    }
+    // Start auto-restore timer
+    startSvdLinearEqCountdown();
     
     addLog(`✅ Solution found: x = [${x.map(val => val.toFixed(6)).join(', ')}]`, 'success');
     addLog(`📊 SVD is the most numerically stable method - works for any matrix!`, 'info');
@@ -17028,14 +17022,8 @@ function solveLinearSystemQR(A, b) {
     // Show visualization with steps
     showQrLinearEqVisualization(A, b, Q, R, y, x);
     
-    // Talking guide narrates the real numbers, then the auto-restore timer starts
-    if (window.DecompTeacher) {
-        DecompTeacher.start({ method: 'qr', container: domCache.matrixVisual, A, b, Q, R, y, x,
-            onReplay: () => { if (qrTimeout) clearTimeout(qrTimeout); if (qrTimerInterval) clearInterval(qrTimerInterval); },
-            onDone: startQrLinearEqCountdown });
-    } else {
-        startQrLinearEqCountdown();
-    }
+    // Start auto-restore timer
+    startQrLinearEqCountdown();
     
     addLog(`✅ Solution found: x = [${x.map(val => val.toFixed(4)).join(', ')}]`, 'success');
 }
@@ -18285,14 +18273,8 @@ function solveLinearSystemLU(A, b) {
     // Show visualization with steps
     showLuLinearEqVisualization(A, b, L, U, y, x);
     
-    // Talking guide narrates the real numbers, then the auto-restore timer starts
-    if (window.DecompTeacher) {
-        DecompTeacher.start({ method: 'lu', container: domCache.matrixVisual, A, b, L, U, y, x,
-            onReplay: () => { if (luLinearEqTimeout) clearTimeout(luLinearEqTimeout); if (window.luLinearEqTimerInterval) clearInterval(window.luLinearEqTimerInterval); },
-            onDone: startLuLinearEqCountdown });
-    } else {
-        startLuLinearEqCountdown();
-    }
+    // Start auto-restore timer
+    startLuLinearEqCountdown();
     
     addLog(`✅ Solution found: x = [${x.map(val => val.toFixed(4)).join(', ')}]`, 'success');
 }
@@ -46264,13 +46246,8 @@ function showNeighbors8DVisualization(targetRow, targetCol, targetValue, neighbo
     `;
     
     container.innerHTML = visualizationHTML;
-    if (window.NeighborTeacher) {
-        const stopCountdown = () => { if (neighbors8DTimeout) clearTimeout(neighbors8DTimeout); if (neighbors8DTimerInterval) clearInterval(neighbors8DTimerInterval); };
-        NeighborTeacher.start({ mode: '8d', row: targetRow, col: targetCol, matrix: neighbors8DOriginalMatrix, neighbors, onReplay: stopCountdown, onDone: startNeighbors8DCountdown });
-    } else {
-        animateNeighbors8D(targetRow, targetCol, neighbors);
-        startNeighbors8DCountdown();
-    }
+    animateNeighbors8D(targetRow, targetCol, neighbors);
+    startNeighbors8DCountdown();
 }
 
 function renderMatrixWith8DHighlight(matrix, targetRow, targetCol, neighbors) {
@@ -46489,6 +46466,12 @@ function findAndShowNeighbors(row, col) {
 
 function showNeighborsVisualization(targetRow, targetCol, targetValue, neighbors) {
     const container = domCache.matrixVisual;
+    // Animated, clickable version with voice (falls back to the classic view if the module is missing)
+    if (window.Neighbors4DViz) {
+        Neighbors4DViz.show({ container, matrix: neighborsOriginalMatrix, row: targetRow, col: targetCol,
+            onClear: restoreOriginalAfterNeighbors, log: addLog });
+        return;
+    }
     const rows = neighborsOriginalMatrix.length;
     const cols = neighborsOriginalMatrix[0].length;
     
@@ -46533,14 +46516,8 @@ function showNeighborsVisualization(targetRow, targetCol, targetValue, neighbors
     `;
     
     container.innerHTML = visualizationHTML;
-    if (window.NeighborTeacher) {
-        // talking guide runs the lesson; the auto-restore countdown starts when it finishes
-        const stopCountdown = () => { if (neighborsTimeout) clearTimeout(neighborsTimeout); if (window.neighborsTimerInterval) clearInterval(window.neighborsTimerInterval); };
-        NeighborTeacher.start({ mode: '4d', row: targetRow, col: targetCol, matrix: neighborsOriginalMatrix, neighbors, onReplay: stopCountdown, onDone: startNeighborsCountdown });
-    } else {
-        animateNeighbors(targetRow, targetCol, neighbors);
-        startNeighborsCountdown();
-    }
+    animateNeighbors(targetRow, targetCol, neighbors);
+    startNeighborsCountdown();
 }
 
 function renderMatrixWithNeighborHighlight(matrix, targetRow, targetCol, neighbors) {
@@ -120828,488 +120805,194 @@ document.getElementById('lc723Btn')?.addEventListener('click', showCandyCrushSet
 })();
 </script>
 
-<!-- ========== Neighbor Teacher: talking guide + pointing hand for 4-/8-directional neighbors ========== -->
+<!-- ========== 4-Directional Neighbors: animated, clickable, with voice ========== -->
 <style>
-.nbt-panel{display:flex;align-items:center;gap:14px;max-width:640px;margin:0 auto 14px;padding:10px 14px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)}
-.nbt-boy{flex:0 0 110px;width:110px;height:150px}
-.nbt-arm{transform-origin:118px 92px;transition:transform .7s cubic-bezier(.34,1.4,.5,1)}
-.nbt-mouth{transform-origin:80px 56px;transform-box:view-box}
-.nbt-talking .nbt-mouth{animation:nbtTalk .22s infinite alternate}
-.nbt-eyes{transform-origin:80px 44px;animation:nbtBlink 4s infinite}
-.nbt-boy-wrap{animation:nbtBob 2.4s ease-in-out infinite}
-@keyframes nbtTalk{from{transform:scaleY(.35)}to{transform:scaleY(1.2)}}
-@keyframes nbtBlink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
-@keyframes nbtBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-.nbt-side{flex:1;min-width:0}
-.nbt-bubble{position:relative;background:#fff;color:#1f2d3d;border-radius:16px;padding:10px 14px;font-size:15px;line-height:1.4;font-weight:600;min-height:62px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
-.nbt-bubble:before{content:"";position:absolute;left:-10px;top:24px;border:10px solid transparent;border-right-color:#fff;border-left:0}
-.nbt-chip{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#2c3e50;color:#f1c40f;font:600 12px/1.6 monospace}
-.nbt-ctrl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
-.nbt-ctrl button,.nbt-ctrl select{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:2px 12px;font-size:12px;cursor:pointer}
-.nbt-ctrl option{color:#000}
-.nbt-hand{position:absolute;width:56px;height:40px;margin:-20px 0 0 -28px;pointer-events:none;z-index:20;opacity:0;transition:left .75s cubic-bezier(.4,.1,.2,1),top .75s cubic-bezier(.4,.1,.2,1),opacity .3s,transform .75s;filter:drop-shadow(0 3px 3px rgba(0,0,0,.35))}
-.nbt-hand.nbt-on{opacity:1}
-.nbt-hand svg{animation:nbtPoke .7s ease-in-out infinite alternate;overflow:visible}
-@keyframes nbtPoke{from{transform:translateX(-4px)}to{transform:translateX(5px)}}
-.nbt-ghost{position:absolute;z-index:15;display:flex;align-items:center;justify-content:center;border:3px dashed #e74c3c;border-radius:12px;color:#e74c3c;font-size:30px;font-weight:900;background:rgba(231,76,60,.12);pointer-events:none;animation:nbtShake .5s}
-@keyframes nbtShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
-@keyframes nbtPop{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1.08)}}
-.nbt-badge{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;background:#f1c40f;color:#222;font-size:13px;line-height:22px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,.4)}
-@media(prefers-reduced-motion:reduce){.nbt-boy-wrap,.nbt-hand svg,.nbt-eyes{animation:none}}
+.n4-wrap{width:min(940px,100%);margin:0 auto;font-family:'Segoe UI',system-ui,sans-serif}
+.n4-title{text-align:center;font-size:30px;font-weight:800;color:#8d96a7;margin-bottom:2px}
+.n4-sub{text-align:center;color:#334155;font-size:15px;margin-bottom:14px}
+.n4-card{display:flex;flex-wrap:wrap;gap:18px;background:#fff;border-radius:26px;padding:22px;box-shadow:0 18px 50px rgba(15,23,42,.18)}
+.n4-gridwrap{flex:0 0 auto;max-width:100%;overflow:auto;padding:30px 8px 24px 4px}
+.n4-grid{display:grid;gap:10px;align-items:center;justify-items:center;width:max-content;margin:0 auto}
+.n4-idx{font:600 12px 'Consolas',monospace;color:#94a3b8}
+.n4-cell{position:relative;width:56px;height:56px;border-radius:14px;background:#8a94a8;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:21px;cursor:pointer;user-select:none;transition:transform .25s,background .3s,box-shadow .3s,color .3s}
+.n4-cell:hover{transform:scale(1.06)}
+.n4-cell.n4-center{background:#ff5a76;color:#fff;box-shadow:0 0 0 4px rgba(255,90,118,.25),0 0 26px rgba(255,90,118,.7);transform:scale(1.08);z-index:3}
+.n4-cell.n4-pop{animation:n4Pop .55s cubic-bezier(.34,1.6,.5,1) forwards;color:#111827;z-index:2}
+.n4-cell.n4-up.n4-pop{background:#4fc3f7;box-shadow:0 0 22px rgba(79,195,247,.85)}
+.n4-cell.n4-right.n4-pop{background:#81c784;box-shadow:0 0 22px rgba(129,199,132,.85)}
+.n4-cell.n4-down.n4-pop{background:#ffb74d;box-shadow:0 0 22px rgba(255,183,77,.85)}
+.n4-cell.n4-left.n4-pop{background:#ba68c8;box-shadow:0 0 22px rgba(186,104,200,.85)}
+@keyframes n4Pop{0%{transform:scale(.7)}60%{transform:scale(1.22)}100%{transform:scale(1.1)}}
+.n4-arrow{position:absolute;width:0;height:0;border:9px solid transparent;opacity:0;transition:opacity .3s,transform .4s;pointer-events:none}
+.n4-arrow.on{opacity:1}
+.n4-arrow.up{top:-19px;left:50%;margin-left:-9px;border-bottom:11px solid #4fc3f7;border-top:0}
+.n4-arrow.down{bottom:-19px;left:50%;margin-left:-9px;border-top:11px solid #ffb74d;border-bottom:0}
+.n4-arrow.left{left:-19px;top:50%;margin-top:-9px;border-right:11px solid #ba68c8;border-left:0}
+.n4-arrow.right{right:-19px;top:50%;margin-top:-9px;border-left:11px solid #81c784;border-right:0}
+.n4-edge{position:absolute;color:#ef4444;font-weight:900;font-size:22px;animation:n4Shake .5s;pointer-events:none;text-shadow:0 0 6px #fff}
+.n4-edge.up{top:-30px;left:50%;margin-left:-8px}.n4-edge.down{bottom:-30px;left:50%;margin-left:-8px}
+.n4-edge.left{left:-28px;top:50%;margin-top:-14px}.n4-edge.right{right:-28px;top:50%;margin-top:-14px}
+@keyframes n4Shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.n4-panel{flex:1 1 220px;min-width:210px}
+.n4-lab{font-weight:700;color:#94a3b8;font-size:14px}
+.n4-selv{font:800 30px/1.3 'Consolas',monospace;color:#ff5a76;margin-bottom:10px}
+.n4-dir{display:flex;align-items:center;justify-content:space-between;border-left:5px solid var(--c);background:var(--bg);border-radius:12px;padding:8px 14px;margin-bottom:10px;opacity:.25;transform:translateX(18px);transition:all .45s}
+.n4-dir.on{opacity:1;transform:none}
+.n4-dir b{display:block;color:var(--c);font-size:14px;letter-spacing:.5px}
+.n4-dir small{font:12px 'Consolas',monospace;color:#94a3b8}
+.n4-dir span{font-size:24px;font-weight:800;color:var(--c)}
+.n4-dir.none span{font-size:14px;color:#ef4444}
+.n4-found{font-weight:800;color:#8d96a7;margin-top:6px}
+.n4-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:22px;margin:16px 0 8px;color:#334155;font-size:14px}
+.n4-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.n4-btns button{border:0;border-radius:999px;padding:7px 20px;background:#e2e8f0;color:#334155;font-weight:700;cursor:pointer}
+.n4-btns button:hover{background:#cbd5e1}
+.n4-btns button.red{background:#fee2e2;color:#b91c1c}
+@media(prefers-reduced-motion:reduce){.n4-cell,.n4-dir{transition:none}.n4-cell.n4-pop{animation:none}}
 </style>
 <script>
-window.NeighborTeacher = (function () {
-    const ARROW = {'-1,0':'↑','-1,1':'↗','0,1':'→','1,1':'↘','1,0':'↓','1,-1':'↙','0,-1':'←','-1,-1':'↖'};
-    const WORD = {'-1,0':'above','-1,1':'above-right corner','0,1':'right','1,1':'below-right corner',
-                  '1,0':'below','1,-1':'below-left corner','0,-1':'left','-1,-1':'above-left corner'};
-    const ORDER4 = [[-1,0],[0,1],[1,0],[0,-1]];
-    const ORDER8 = ORDER4.concat([[-1,1],[1,1],[1,-1],[-1,-1]]);
-    const COL4 = {'-1,0':'#3498db','1,0':'#2ecc71','0,-1':'#e74c3c','0,1':'#9b59b6'};
-    const PLAIN = 'background: linear-gradient(145deg, #ffffff, #f0f2f5); opacity: 0.6;';
+window.Neighbors4DViz = (function () {
+    const DIRS = [
+        { k: 'up', name: 'UP', dr: -1, dc: 0, f: '(r-1, c)', color: '#4fc3f7', bg: 'rgba(79,195,247,.14)', word: 'Up', edge: 'the top edge' },
+        { k: 'right', name: 'RIGHT', dr: 0, dc: 1, f: '(r, c+1)', color: '#66bb6a', bg: 'rgba(129,199,132,.16)', word: 'Right', edge: 'the right edge' },
+        { k: 'down', name: 'DOWN', dr: 1, dc: 0, f: '(r+1, c)', color: '#ffa726', bg: 'rgba(255,183,77,.18)', word: 'Down', edge: 'the bottom edge' },
+        { k: 'left', name: 'LEFT', dr: 0, dc: -1, f: '(r, c-1)', color: '#ab47bc', bg: 'rgba(186,104,200,.16)', word: 'Left', edge: 'the left edge' }
+    ];
+    let muted = false, token = 0, tour = false;
 
-    let muted = false, speed = 1, run = 0, current = null;
+    const show = v => (v === '' || v === null || v === undefined) ? '·' : String(v);
+    const say = v => (v === '' || v === null || v === undefined) ? 'empty' : String(v);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    const sleep = ms => new Promise(r => setTimeout(r, ms / speed));
-
-    function say(panel, text, chip) {
-        panel.querySelector('.nbt-text').textContent = text;
-        panel.querySelector('.nbt-chip').textContent = chip || '';
-        panel.querySelector('.nbt-chip').style.display = chip ? 'inline-block' : 'none';
+    function speak(text) {
         return new Promise(resolve => {
-            const wrap = panel.querySelector('.nbt-boy-wrap');
-            wrap.classList.add('nbt-talking');
-            let done = false;
-            const t0 = Date.now(), est = (text.length * 65 + 700) / speed;
-            // never move on faster than reading speed, even if the voice fails or ends early
-            const finish = () => {
-                if (done) return;
-                const wait = est * 0.6 - (Date.now() - t0);
-                if (wait > 0) return setTimeout(finish, wait);
-                done = true; wrap.classList.remove('nbt-talking'); resolve();
-            };
+            const est = text.length * 62 + 500;
             const synth = window.speechSynthesis;
+            let done = false;
+            const fin = () => { if (!done) { done = true; resolve(); } };
+            const t0 = Date.now();
+            const finMin = () => { const w = est * 0.55 - (Date.now() - t0); w > 0 ? setTimeout(fin, w) : fin(); };
             if (!muted && synth && window.SpeechSynthesisUtterance) {
-                synth.cancel();
-                const u = new SpeechSynthesisUtterance(text.replace(/[→←↑↓]/g, ''));
-                u.rate = Math.min(1.6, 0.95 * speed); u.pitch = 1.2;
-                u.onend = () => setTimeout(finish, 250 / speed);
-                u.onerror = finish;
-                synth.speak(u);
-                setTimeout(finish, est * 2.2 + 2500);
-            } else {
-                setTimeout(finish, est);
+                try {
+                    synth.cancel();
+                    const u = new SpeechSynthesisUtterance(text);
+                    u.rate = 0.95; u.pitch = 1.1;
+                    u.onend = () => setTimeout(finMin, 150); u.onerror = finMin;
+                    synth.speak(u);
+                    setTimeout(finMin, est * 2 + 2500);
+                    return;
+                } catch (e) { /* fall through to timer */ }
             }
+            setTimeout(fin, est);
         });
     }
+    const stopSpeech = () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); };
 
-    function boySVG() {
-        return `<svg class="nbt-boy" viewBox="0 0 160 230" xmlns="http://www.w3.org/2000/svg">
-          <g class="nbt-boy-wrap">
-            <rect x="52" y="150" width="26" height="62" rx="6" fill="#1f4e8c"/><rect x="84" y="150" width="26" height="62" rx="6" fill="#255ea8"/>
-            <ellipse cx="62" cy="214" rx="18" ry="8" fill="#e74c3c"/><ellipse cx="102" cy="214" rx="18" ry="8" fill="#e74c3c"/>
-            <path d="M48 98 Q48 84 64 84 L98 84 Q116 84 116 98 L112 156 L52 156 Z" fill="#2f9be6"/>
-            <path d="M52 96 L36 130 Q34 138 42 140 L56 138" fill="#2f9be6"/>
-            <circle cx="48" cy="144" r="9" fill="#f6c9a0"/>
-            <g class="nbt-arm" id="nbtArm">
-              <rect x="116" y="85" width="46" height="15" rx="7.5" fill="#f6c9a0"/>
-              <rect x="116" y="83" width="26" height="19" rx="8" fill="#2f9be6"/>
-              <rect x="150" y="87" width="40" height="7" rx="3.5" fill="#f6c9a0"/>
-              <circle cx="152" cy="94" r="9" fill="#f6c9a0"/>
-            </g>
-            <circle cx="80" cy="44" r="32" fill="#f6c9a0"/>
-            <path d="M46 40 Q44 8 80 10 Q118 8 114 40 Q104 22 92 24 Q78 18 62 26 Q50 28 46 40 Z" fill="#1c1c24"/>
-            <g class="nbt-eyes"><ellipse cx="68" cy="44" rx="5" ry="6.5" fill="#fff"/><ellipse cx="94" cy="44" rx="5" ry="6.5" fill="#fff"/>
-              <circle cx="69" cy="45" r="3.2" fill="#1c1c24"/><circle cx="95" cy="45" r="3.2" fill="#1c1c24"/></g>
-            <ellipse cx="58" cy="56" rx="5" ry="3" fill="#f5a08a" opacity=".6"/><ellipse cx="104" cy="56" rx="5" ry="3" fill="#f5a08a" opacity=".6"/>
-            <ellipse class="nbt-mouth" cx="81" cy="60" rx="9" ry="6" fill="#8b2c2c"/>
-          </g></svg>`;
-    }
+    function render(o) {
+        const M = o.matrix, rows = M.length, cols = M[0].length;
+        const root = o.container;
+        let sel = { r: o.row, c: o.col };
 
-    function handSVG() {
-        return `<svg viewBox="0 0 56 40" width="56" height="40"><g stroke="#8a5a3a" stroke-width="1.6" fill="#f6c9a0" stroke-linejoin="round">
-          <rect x="2" y="13" width="26" height="22" rx="9"/>
-          <rect x="22" y="14" width="32" height="9" rx="4.5"/>
-          <rect x="8" y="3" width="17" height="10" rx="5"/>
-          <circle cx="10" cy="35" r="5"/><circle cx="19" cy="36" r="5"/>
-          </g></svg>`;
-    }
-
-    function cellOf(grid, r, c) {
-        const rowEl = grid.firstElementChild && grid.firstElementChild.children[r];
-        return rowEl && rowEl.children[c];
-    }
-    function centerOf(grid, el) {
-        const g = grid.getBoundingClientRect(), e = el.getBoundingClientRect();
-        return { x: e.left - g.left + e.width / 2, y: e.top - g.top + e.height / 2, w: e.width, h: e.height };
-    }
-
-    function start(o) {
-        const gridId = o.mode === '4d' ? 'neighborsMatrix' : 'neighbors8DMatrix';
-        const grid = document.getElementById(gridId);
-        if (!grid) { if (o.onDone) o.onDone(); return; }
-        run++;
-        const token = run;
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-        const old = document.getElementById('nbtPanel'); if (old) old.remove();
-        const panel = document.createElement('div');
-        panel.id = 'nbtPanel'; panel.className = 'nbt-panel';
-        panel.innerHTML = boySVG() + `<div class="nbt-side"><div class="nbt-bubble"><span class="nbt-text"></span><br><span class="nbt-chip"></span></div>
-            <div class="nbt-ctrl"><button data-a="replay">↻ Replay</button><button data-a="skip">⏭ Skip</button>
-            <button data-a="mute">${muted ? '🔇 Voice off' : '🔊 Voice on'}</button>
-            <select data-a="speed"><option value="0.7">Slow</option><option value="1" selected>Normal</option><option value="1.5">Fast</option></select></div></div>`;
-        grid.parentNode.insertBefore(panel, grid);
-        panel.querySelector('select').value = String(speed);
-        grid.style.position = 'relative';
-        const hand = document.createElement('div'); hand.className = 'nbt-hand'; hand.innerHTML = handSVG();
-        grid.appendChild(hand);
-
-        const R = o.row, C = o.col, M = o.matrix, rows = M.length, cols = M[0].length;
-        const dirs = o.mode === '4d' ? ORDER4 : ORDER8;
-        const alive = () => token === run && grid.isConnected;
-        const arm = panel.querySelector('#nbtArm');
-
-        // hide the pre-highlighted answers; the guide reveals them one by one
-        const saved = new Map(), classes = new Map();
-        const LOOK = ['background', 'background-image', 'background-color', 'border', 'border-color', 'border-width', 'border-style', 'color', 'opacity', 'position', 'animation'];
-        const stripLook = el => LOOK.forEach(p => el.style.removeProperty(p));
-        grid.querySelectorAll('.nbt-badge').forEach(b => b.remove());
-        o.neighbors.forEach(n => {
-            const el = cellOf(grid, n.row, n.col);
-            if (!el) return;
-            const key = n.row + ',' + n.col;
-            if (!saved.has(key)) {
-                // remember the cell's styling (without transient animation/position) so reveal can restore it
-                const probe = el.cloneNode(false); probe.style.cssText = el.style.cssText;
-                ['position', 'animation', 'opacity'].forEach(p => probe.style.removeProperty(p));
-                saved.set(key, probe.style.cssText);
+        root.innerHTML = `<div class="n4-wrap">
+            <div class="n4-title">4-Directional Neighbors</div>
+            <div class="n4-sub">Click any cell. Watch it reach up, down, left and right, and see what happens at the edges.</div>
+            <div class="n4-card">
+              <div class="n4-gridwrap"><div class="n4-grid" id="n4Grid"></div></div>
+              <div class="n4-panel">
+                <div class="n4-lab">Selected cell</div><div class="n4-selv" id="n4Sel"></div>
+                <div id="n4Dirs">${DIRS.map(d => `<div class="n4-dir" data-k="${d.k}" style="--c:${d.color};--bg:${d.bg}"><div><b>${d.name}</b><small>${d.f}</small></div><span>—</span></div>`).join('')}</div>
+                <div class="n4-found" id="n4Found">&nbsp;</div>
+              </div>
+            </div>
+            <div class="n4-legend"><span>Up (r−1, c)</span><span>Down (r+1, c)</span><span>Left (r, c−1)</span><span>Right (r, c+1)</span></div>
+            <div class="n4-btns">
+              <button id="n4Replay">Replay animation</button>
+              <button id="n4Tour">Start auto tour</button>
+              <button id="n4Mute">${muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
+              <button id="n4Clear" class="red">Clear &amp; restore matrix</button>
+            </div></div>`;
+        const grid = root.querySelector('#n4Grid');
+        grid.style.gridTemplateColumns = `24px repeat(${cols}, 56px)`;
+        const cells = [];
+        grid.appendChild(document.createElement('span'));
+        for (let c = 0; c < cols; c++) { const s = document.createElement('span'); s.className = 'n4-idx'; s.textContent = c; grid.appendChild(s); }
+        for (let r = 0; r < rows; r++) {
+            const lab = document.createElement('span'); lab.className = 'n4-idx'; lab.textContent = r; grid.appendChild(lab);
+            cells[r] = [];
+            for (let c = 0; c < cols; c++) {
+                const el = document.createElement('div');
+                el.className = 'n4-cell'; el.textContent = show(M[r][c]);
+                el.title = `(${r}, ${c})`;
+                el.addEventListener('click', () => { stopTour(); select(r, c); });
+                grid.appendChild(el); cells[r][c] = el;
             }
-            stripLook(el); el.style.cssText += PLAIN;
-            // the page's own .neighbor-* classes colour cells with !important, so lift them until the reveal
-            const cls = [...el.classList].filter(c => /^neighbor-/.test(c));
-            if (cls.length) { classes.set(key, cls); el.classList.remove(...cls); }
-        });
-        const targetEl = cellOf(grid, R, C);
+        }
+        const dirEls = {}; root.querySelectorAll('.n4-dir').forEach(e => dirEls[e.dataset.k] = e);
+        const alive = t => t === token && root.isConnected;
 
-        function cleanup() {
-            grid.querySelectorAll('.nbt-ghost,.nbt-badge').forEach(e => e.remove());
-            hand.classList.remove('nbt-on');
-            arm.style.transform = 'rotate(0deg)';
-        }
-        function reveal(n, dr, dc) {
-            const el = cellOf(grid, n.row, n.col); if (!el) return;
-            el.style.cssText = saved.get(n.row + ',' + n.col) || '';
-            const cls = classes.get(n.row + ',' + n.col); if (cls) el.classList.add(...cls);
-            if (o.mode === '4d' && COL4[dr + ',' + dc]) {
-                const c = COL4[dr + ',' + dc];
-                stripLook(el);
-                el.style.cssText += `background: linear-gradient(145deg, ${c}, ${c}dd); color:#fff; border:2px solid #f1c40f;`;
-            }
-            el.style.cssText += 'position:relative;animation:nbtPop .5s forwards;';
-            const b = document.createElement('span'); b.className = 'nbt-badge'; b.textContent = ARROW[dr + ',' + dc];
-            el.appendChild(b);
-        }
-        function pointTo(dr, dc) {
-            const ang = Math.atan2(dr, dc) * 180 / Math.PI;
-            arm.style.transform = `rotate(${ang}deg)`;
-            const t = centerOf(grid, targetEl), step = t.w + 6;
-            const nx = t.x + dc * step, ny = t.y + dr * step;
-            const len = Math.hypot(dr, dc), ux = dc / len, uy = dr / len;
-            hand.style.transform = `rotate(${ang}deg)`;
-            hand.style.left = (nx - ux * 40) + 'px';
-            hand.style.top = (ny - uy * 40) + 'px';
-            return { nx, ny, w: t.w, h: t.h };
+        function reset() {
+            cells.flat().forEach(el => { el.className = 'n4-cell'; el.querySelectorAll('.n4-arrow,.n4-edge').forEach(x => x.remove()); });
+            Object.values(dirEls).forEach(e => { e.classList.remove('on', 'none'); e.querySelector('span').textContent = '—'; });
+            root.querySelector('#n4Found').innerHTML = '&nbsp;';
         }
 
-        async function lesson() {
-            cleanup();
-            const v = M[R][C];
-            const posHand = centerOf(grid, targetEl);
-            hand.style.transition = 'none'; hand.style.left = (posHand.x - 40) + 'px'; hand.style.top = (posHand.y + 50) + 'px';
-            void hand.offsetWidth; hand.style.transition = '';
-            hand.classList.add('nbt-on');
-            targetEl.style.animation = 'targetPulse .7s ease-out';
-            if (o.mode === '4d') {
-                await say(panel, `Hi! Look at this orange cell. It holds ${v} and sits at row ${R}, column ${C}. Its neighbors are the cells that touch it on a flat side. Let me point at them!`, `cell = (${R}, ${C})`);
-            } else {
-                await say(panel, `Hi! This orange cell holds ${v}, at row ${R}, column ${C}. It can have up to 8 neighbors. First the 4 cells touching its sides, then the 4 touching its corners. Watch my finger!`, `cell = (${R}, ${C})`);
-            }
-            if (!alive()) return;
-            const found = [];
-            for (let i = 0; i < dirs.length; i++) {
-                const [dr, dc] = dirs[i];
-                if (o.mode === '8d' && i === 4) {
-                    await say(panel, 'Sides done! Now the corners, the diagonal cells.', 'diagonal = both row and column change');
-                    if (!alive()) return;
-                }
-                const nr = R + dr, nc = C + dc, key = dr + ',' + dc;
-                const p = pointTo(dr, dc);
-                const rs = dr === 0 ? 'r' : (dr < 0 ? 'r-1' : 'r+1'), cs = dc === 0 ? 'c' : (dc < 0 ? 'c-1' : 'c+1');
-                await sleep(750);
-                if (!alive()) return;
+        async function select(r, c) {
+            sel = { r, c };
+            const t = ++token;
+            stopSpeech(); reset();
+            const centerEl = cells[r][c];
+            centerEl.classList.add('n4-center');
+            root.querySelector('#n4Sel').textContent = `(${r}, ${c}) = ${show(M[r][c])}`;
+            if (o.log) o.log(`📍 Selected (${r},${c}) = ${say(M[r][c])}`, 'info');
+            await speak(`Selected cell, row ${r}, column ${c}, value ${say(M[r][c])}.`);
+            if (!alive(t)) return;
+            let found = 0;
+            for (const d of DIRS) {
+                const nr = r + d.dr, nc = c + d.dc, de = dirEls[d.k];
                 const inside = nr >= 0 && nr < rows && nc >= 0 && nc < cols;
                 if (inside) {
-                    const n = o.neighbors.find(x => x.row === nr && x.col === nc);
-                    reveal(n, dr, dc); found.push(M[nr][nc]);
-                    await say(panel, `${ARROW[key]} The ${WORD[key]} is ${M[nr][nc]}.`, `(${rs}, ${cs}) = (${nr}, ${nc})`);
+                    const arrow = document.createElement('div'); arrow.className = `n4-arrow ${d.k}`; centerEl.appendChild(arrow);
+                    requestAnimationFrame(() => arrow.classList.add('on'));
+                    await sleep(260); if (!alive(t)) return;
+                    const ne = cells[nr][nc]; ne.classList.add(`n4-${d.k}`, 'n4-pop');
+                    de.classList.add('on'); de.querySelector('small').textContent = `${d.f} → (${nr}, ${nc})`;
+                    de.querySelector('span').textContent = show(M[nr][nc]);
+                    found++;
+                    if (o.log) o.log(`  ${d.name}: (${nr},${nc}) = ${say(M[nr][nc])}`, 'info');
+                    await speak(`${d.word} of row ${r}, column ${c} is ${say(M[nr][nc])}.`);
                 } else {
-                    const g = document.createElement('div'); g.className = 'nbt-ghost'; g.textContent = '✕';
-                    g.style.cssText = `left:${p.nx - p.w / 2}px;top:${p.ny - p.h / 2}px;width:${p.w}px;height:${p.h}px;`;
-                    grid.appendChild(g);
-                    await say(panel, `${ARROW[key]} The ${WORD[key]}? Nothing there! The grid ends, so this neighbor does not exist.`, `(${rs}, ${cs}) = (${nr}, ${nc}) is outside`);
+                    const x = document.createElement('div'); x.className = `n4-edge ${d.k}`; x.textContent = '✕'; centerEl.appendChild(x);
+                    de.classList.add('on', 'none'); de.querySelector('small').textContent = `${d.f} → (${nr}, ${nc})`;
+                    de.querySelector('span').textContent = 'none (edge)';
+                    await speak(`${d.word} of row ${r}, column ${c}: nothing. This cell is at ${d.edge}.`);
                 }
-                if (!alive()) return;
+                if (!alive(t)) return;
+                await sleep(200);
             }
-            cleanup();
-            const list = found.length ? found.join(', ') : 'nothing';
-            await say(panel, found.length
-                ? `Great job! Cell ${v} has ${found.length} neighbor${found.length > 1 ? 's' : ''}: ${list}. Only cells inside the grid count!`
-                : `Cell ${v} has no neighbors at all.`, `neighbors = [ ${found.join(', ')} ]`);
+            root.querySelector('#n4Found').textContent = `Found ${found} neighbor${found === 1 ? '' : 's'}`;
+            await speak(`Found ${found} neighbor${found === 1 ? '' : 's'}.`);
         }
 
-        function showAll() {
-            o.neighbors.forEach(n => {
-                const dr = n.row - R, dc = n.col - C, el = cellOf(grid, n.row, n.col);
-                if (el && !el.querySelector('.nbt-badge')) reveal(n, dr, dc);
-            });
-        }
-        let finished = false;
-        const finish = () => { if (finished) return; finished = true; if (o.onDone) o.onDone(); };
-        const go = () => lesson().then(() => { if (alive()) { cleanup(); finish(); } });
-
-        panel.addEventListener('click', e => {
-            const a = e.target.dataset && e.target.dataset.a;
-            if (a === 'mute') { muted = !muted; e.target.textContent = muted ? '🔇 Voice off' : '🔊 Voice on'; if (muted && window.speechSynthesis) window.speechSynthesis.cancel(); }
-            if (a === 'skip') { run++; if (window.speechSynthesis) window.speechSynthesis.cancel(); panel.querySelector('.nbt-boy-wrap').classList.remove('nbt-talking'); cleanup(); showAll(); say(panel, 'Skipped. All neighbors are shown. Press Replay to watch again.', ''); if (window.speechSynthesis) window.speechSynthesis.cancel(); finish(); }
-            if (a === 'replay') { if (o.onReplay) o.onReplay(); finished = false; start(o); }
-        });
-        panel.addEventListener('change', e => { if (e.target.dataset.a === 'speed') speed = parseFloat(e.target.value); });
-        go();
-    }
-    return {
-        start, say, boySVG, handSVG,
-        stopSpeech: () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); },
-        getMuted: () => muted, setMuted: v => { muted = v; },
-        getSpeed: () => speed, setSpeed: v => { speed = v; }
-    };
-})();
-</script>
-
-<!-- ========== Decomposition Teacher: funny talking guide for LU / QR / SVD ========== -->
-<style>
-.dt-panel{flex-wrap:wrap;max-width:980px;position:relative;align-items:flex-start}
-.dt-top{display:flex;align-items:center;gap:14px;flex:1 1 100%}
-.dt-lower{flex:1 1 100%;background:#0f172a;border-radius:14px;padding:10px 12px;color:#e2e8f0}
-.dt-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.dt-pill{background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:999px;padding:2px 12px;font-size:12px;cursor:pointer;font-weight:700}
-.dt-pill.on{background:#facc15;color:#1e293b;border-color:#facc15}
-.dt-pill.done{color:#4ade80;border-color:#166534}
-.dt-board{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;min-height:96px;position:relative}
-.dt-mx{display:inline-flex;flex-direction:column;align-items:center;margin:4px 8px}
-.dt-mx small{color:#94a3b8;font-weight:700;font-size:12px;margin-bottom:2px}
-.dt-mx table{border-left:3px solid #94a3b8;border-right:3px solid #94a3b8;border-radius:8px;border-collapse:separate;border-spacing:3px}
-.dt-mx td{padding:3px 8px;font:700 14px/1.3 monospace;text-align:center;border-radius:6px;min-width:34px;color:#e2e8f0;transition:background .4s}
-.dt-op{font:800 26px/1 sans-serif;color:#facc15;margin:0 2px}
-.dt-lines{font:700 14px/1.7 monospace;color:#e2e8f0;text-align:left}
-.dt-lines div{animation:dtIn .5s both}
-@keyframes dtIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1}}
-.dt-bar{height:14px;border-radius:7px;background:linear-gradient(90deg,#fb923c,#facc15);margin:3px 0;min-width:4px;transition:width .6s}
-.dt-formula{display:inline-block;margin-top:6px;padding:2px 12px;border-radius:999px;background:#2c3e50;color:#f1c40f;font:700 13px/1.7 monospace}
-.dt-hand{z-index:30}
-</style>
-<script>
-window.DecompTeacher = (function () {
-    const NT = window.NeighborTeacher;
-    const C = { gold: '#facc15', green: '#4ade80', red: '#f87171', blue: '#60a5fa', purple: '#c084fc', orange: '#fb923c', teal: '#2dd4bf' };
-    let run = 0;
-
-    const fmt = v => {
-        if (typeof v !== 'number' || !isFinite(v)) return String(v);
-        const r = Math.round(v * 1000) / 1000;
-        return Object.is(r, -0) ? '0' : (Number.isInteger(r) ? String(r) : r.toFixed(3).replace(/0+$/, '').replace(/\.$/, ''));
-    };
-    const vec = v => v.map(a => [a]);
-    const T = M => M[0].map((_, j) => M.map(r => r[j]));
-    const sub = i => String(i + 1);
-    const mx = (M, label, hl) => `<div class="dt-mx"><small>${label || ''}</small><table>${M.map((r, i) => `<tr>${r.map((v, j) => {
-        const c = hl && hl(i, j);
-        return `<td class="${c ? 'dt-hl' : ''}" style="${c ? `background:${c};color:#0f172a` : ''}">${fmt(+v)}</td>`;
-    }).join('')}</tr>`).join('')}</table></div>`;
-    const op = s => `<span class="dt-op">${s}</span>`;
-    const lines = arr => `<div class="dt-lines">${arr.map((l, i) => `<div style="animation-delay:${i * 0.25}s">${l}</div>`).join('')}</div>`;
-    const list = (arr, n = 4) => arr.slice(0, n).join(', ') + (arr.length > n ? ' and more' : '');
-
-    // ---------- lesson scripts built from the REAL numbers ----------
-    function luSteps(d) {
-        const { A, b, L, U, y, x } = d, n = A.length;
-        const xs = A.map((_, i) => 'x' + sub(i));
-        const mults = [];
-        for (let i = 1; i < n; i++) mults.push(`l${sub(i)}1 = ${fmt(L[i][0])}`);
-        const resid = Math.max(...A.map((r, i) => Math.abs(r.reduce((s, a, j) => s + a * x[j], 0) - b[i])));
-        return [
-            { t: 'Problem', f: 'A x = b',
-              say: 'Hi! I am the Lazy Chef. Solving A x equals b the hard way is exhausting, so I will split A into two easy triangles, L and U. Watch my finger!',
-              board: mx(A, 'A') + op('×') + mx(vec(xs), 'x') + op('=') + mx(vec(b), 'b') },
-            { t: 'Multipliers', f: 'l_ik = a_ik / a_kk',
-              say: `The first pivot is ${fmt(U[0][0])}. For every row below it, I write a sticky note: ${list(mults)}. These notes go into L, so I never forget how I chopped.`,
-              board: mx(A, 'A  (pivot column)', (i, j) => j === 0 && i === 0 ? C.gold : (j === 0 ? C.red : null)) + op('→') + mx(L, 'L  (sticky notes)', (i, j) => j === 0 && i > 0 ? C.green : null) },
-            { t: 'Chop', f: 'a_ij ← a_ij − l_ik · a_kj',
-              say: 'Now I chop. Each row minus its multiplier times the pivot row. Everything under each pivot turns into zero. Repeat for every pivot and what is left is U, the prepped food.',
-              board: mx(U, 'U  (prepped food)', (i, j) => i > j ? C.red : (i === j ? C.gold : null)) },
-            { t: 'Split', f: 'A = L · U',
-              say: 'Magic! A equals L times U. Notes times prepped food. Two easy triangles instead of one scary square.',
-              board: mx(L, 'L', (i, j) => i > j ? C.green : null) + op('×') + mx(U, 'U', (i, j) => i <= j ? C.blue : null) + op('=') + mx(A, 'A') },
-            { t: 'Forward ↓', f: 'y_i = b_i − Σ l_ij·y_j',
-              say: `Order arrives! Forward substitution goes from the top row down. ${y.slice(0, 3).map((v, i) => `y${sub(i)} is ${fmt(v)}`).join(', ')}${n > 3 ? ' and so on' : ''}. Each row only needs answers from the rows above it.`,
-              board: lines(y.map((v, i) => `y${sub(i)} = ${fmt(b[i])}${L[i].slice(0, i).map((l, j) => ` − ${fmt(l)}·${fmt(y[j])}`).join('')} = <b style="color:${C.gold}">${fmt(v)}</b>`)) + mx(vec(y), 'y', () => C.gold) },
-            { t: 'Backward ↑', f: 'x_i = (y_i − Σ u_ij·x_j) / u_ii',
-              say: `Now serve it from the bottom row up. ${x.map((v, i) => `x${sub(i)} is ${fmt(v)}`).slice(0, 4).join(', ')}. Check: A times x matches b within ${resid.toExponential(1)}. New order b? Redo only these last two steps. Lazy wins!`,
-              board: lines(x.map((v, i) => {
-                  const idx = n - 1 - i; return `x${sub(idx)} = (${fmt(y[idx])}${U[idx].slice(idx + 1).map((u, j) => ` − ${fmt(u)}·${fmt(x[idx + 1 + j])}`).join('')}) / ${fmt(U[idx][idx])} = <b style="color:${C.green}">${fmt(x[idx])}</b>`;
-              })) + mx(vec(x), 'x', () => C.green) }
-        ];
-    }
-
-    function qrSteps(d) {
-        const { A, b, Q, R, y, x } = d, n = A.length;
-        const shadows = [];
-        for (let k = 1; k < n; k++) for (let j = 0; j < k; j++) shadows.push(`r${sub(j)}${sub(k)} = ${fmt(R[j][k])}`);
-        const diag = R.map((r, i) => `r${sub(i)}${sub(i)} = ${fmt(r[i])}`);
-        return [
-            { t: 'Problem', f: 'A = Q · R',
-              say: 'Hello! Your columns are crooked sticks. I will tidy them into perfectly straight shelves of length one. That is Q. The record of how crooked they were goes into R.',
-              board: mx(A, 'A  (columns = sticks)', (i, j) => j % 2 === 0 ? 'rgba(96,165,250,.55)' : 'rgba(251,146,60,.55)') },
-            { t: 'First stick', f: 'r11 = ‖a1‖   q1 = a1 / r11',
-              say: `Take the first column. Its length is ${fmt(R[0][0])}. Shrink it to exactly one unit and call it q one. That length goes into R.`,
-              board: mx(Q, 'Q', (i, j) => j === 0 ? C.green : null) + op('×') + mx(R, 'R', (i, j) => i === 0 && j === 0 ? C.gold : null) },
-            { t: 'Shadows', f: 'r_jk = q_jᵀ · a_k',
-              say: n > 1 ? `For the next column I shine a flashlight along each shelf I already built. The shadow lengths are ${list(shadows)}. They fill the upper part of R.` : 'With one column there are no shadows to measure.',
-              board: mx(R, 'R  (shadows)', (i, j) => i < j ? C.gold : null) },
-            { t: 'Sweep', f: 'v_k = a_k − Σ r_jk q_j   q_k = v_k / ‖v_k‖',
-              say: n > 1 ? `Sweep sweep! Subtract the shadows, and what is left stands at exactly ninety degrees. Shrink it to length one. The leftover lengths are ${list(diag.slice(1))}.` : 'Nothing to sweep. The only shelf is already straight.',
-              board: mx(Q, 'Q  (straight shelves)', () => C.green) + op('×') + mx(R, 'R  (diagonal = leftover lengths)', (i, j) => i === j ? C.blue : null) },
-            { t: 'Q × R', f: 'A = Q · R',
-              say: 'So A equals Q times R. Q is straight shelves, R says how crooked A used to be. Q never stretches errors, which makes this method very stable.',
-              board: mx(Q, 'Q', () => 'rgba(74,222,128,.55)') + op('×') + mx(R, 'R', (i, j) => i <= j ? 'rgba(96,165,250,.55)' : null) + op('=') + mx(A, 'A') },
-            { t: 'Solve', f: 'R x = Qᵀ b',
-              say: `To solve, flip b with Q transpose and get y equals ${list(y.map(fmt), 3)}. Then climb up the triangle R. The answer is x equals ${list(x.map(fmt), 4)}. No inverse needed!`,
-              board: lines([`y = Qᵀ·b = [ ${y.map(fmt).join(', ')} ]`].concat(x.map((v, i) => {
-                  const idx = n - 1 - i; return `x${sub(idx)} = (${fmt(y[idx])}${R[idx].slice(idx + 1).map((r, j) => ` − ${fmt(r)}·${fmt(x[idx + 1 + j])}`).join('')}) / ${fmt(R[idx][idx])} = <b style="color:${C.green}">${fmt(x[idx])}</b>`;
-              }))) + mx(vec(x), 'x', () => C.green) }
-        ];
-    }
-
-    function svdSteps(d) {
-        const { A, b, U, Sigma, V, x } = d, k = Sigma.length;
-        const smax = Math.max(...Sigma), smin = Math.min(...Sigma);
-        const tol = 1e-9 * Math.max(smax, 1);
-        const cond = smin > tol ? smax / smin : Infinity;
-        const bars = Sigma.map((s, i) => `<div style="display:flex;align-items:center;gap:8px"><span style="width:34px;font:700 13px monospace">σ${sub(i)}</span><div class="dt-bar" style="width:${Math.max(4, 260 * s / (smax || 1))}px"></div><span style="font:700 13px monospace">${fmt(s)}</span></div>`).join('');
-        const Ut = T(U), Utb = Ut.map(r => r.reduce((s, a, i) => s + a * b[i], 0));
-        const sInvUtb = Utb.map((v, i) => Sigma[i] > tol ? v / Sigma[i] : 0);
-        const diagM = Sigma.map((s, i) => Sigma.map((_, j) => i === j ? s : 0));
-        return [
-            { t: 'Problem', f: 'A = U Σ Vᵀ',
-              say: 'Welcome to the Pizza Machine! Every matrix does just three things: spin the dough, stretch it, spin it again. That is A equals U Sigma V transpose.',
-              board: mx(A, 'A  (the machine)') },
-            { t: 'Spin 1 (Vᵀ)', f: 'AᵀA vᵢ = σᵢ² vᵢ',
-              say: 'First spin with V transpose. Its rows are the special directions of the dough, found from the eigenvectors of A transpose A.',
-              board: mx(T(V), 'Vᵀ  (spin 1)', () => C.blue) },
-            { t: 'Stretch (Σ)', f: 'σᵢ = √λᵢ',
-              say: `Next, roll it out with a rolling pin. The stretch factors, called singular values, are ${list(Sigma.map(fmt), 4)}. Biggest first.`,
-              board: mx(diagM, 'Σ  (stretch)', (i, j) => i === j ? C.orange : null) + `<div style="min-width:260px">${bars}</div>` },
-            { t: 'Spin 2 (U)', f: 'uᵢ = A vᵢ / σᵢ',
-              say: 'Then spin again with U to lay the dough on the plate. Each column of U comes from A times a column of V, divided by its sigma.',
-              board: mx(U, 'U  (spin 2)', () => C.purple) },
-            { t: 'Solve', f: 'x = V Σ⁺ Uᵀ b',
-              say: `To solve A x equals b: spin b with U transpose, divide by each sigma, spin back with V. Tiny sigmas are crumbs, so we bin them. The answer is x equals ${list(x.map(fmt), 4)}.`,
-              board: lines([`Uᵀ·b = [ ${Utb.map(fmt).join(', ')} ]`, `Σ⁺·(Uᵀ·b) = [ ${sInvUtb.map(fmt).join(', ')} ]`, `x = V·(…) = [ <b style="color:${C.green}">${x.map(fmt).join(', ')}</b> ]`]) + mx(vec(x), 'x', () => C.green) },
-            { t: 'Health', f: 'cond(A) = σmax / σmin',
-              say: cond === Infinity
-                  ? 'Health check: the smallest sigma is nearly zero, so the matrix is almost singular. Those crumbs get binned, and SVD still gives the best possible answer.'
-                  : `Health check: the condition number is ${fmt(cond)}. A big number means shaky answers. Keep the big sigmas, bin the tiny ones, and you get compression and noise removal for free.`,
-              board: `<div style="min-width:320px">${bars}</div>` + `<div class="dt-lines"><div>cond(A) = ${fmt(smax)} / ${fmt(smin)} = <b style="color:${C.gold}">${cond === Infinity ? '∞' : fmt(cond)}</b></div></div>` }
-        ];
-    }
-
-    const BUILD = { lu: luSteps, qr: qrSteps, svd: svdSteps };
-    const TITLE = { lu: 'LU · The Lazy Chef', qr: 'QR · Tidy Up the Shelves', svd: 'SVD · The Pizza Machine' };
-
-    function start(o) {
-        const container = o.container;
-        if (!container || !NT) { if (o.onDone) o.onDone(); return; }
-        run++;
-        const token = run;
-        NT.stopSpeech();
-        let steps;
-        try { steps = BUILD[o.method](o); } catch (e) { console.error(e); if (o.onDone) o.onDone(); return; }
-
-        const old = document.getElementById('dtPanel'); if (old) old.remove();
-        const panel = document.createElement('div');
-        panel.id = 'dtPanel'; panel.className = 'nbt-panel dt-panel';
-        panel.innerHTML = `<div class="dt-top">${NT.boySVG()}<div class="nbt-side">
-              <div class="nbt-bubble"><span class="nbt-text"></span><br><span class="nbt-chip dt-formula"></span></div>
-              <div class="nbt-ctrl"><b style="color:#92400e;font-size:13px;background:#fef3c7;border-radius:999px;padding:2px 10px">${TITLE[o.method]}</b>
-                <button data-a="replay">↻ Replay</button><button data-a="skip">⏭ Skip</button>
-                <button data-a="mute">${NT.getMuted() ? '🔇 Voice off' : '🔊 Voice on'}</button>
-                <select data-a="speed"><option value="0.7">Slow</option><option value="1">Normal</option><option value="1.5">Fast</option></select></div></div></div>
-            <div class="dt-lower"><div class="dt-pills">${steps.map((s, i) => `<span class="dt-pill" data-i="${i}">${i + 1}. ${s.t}</span>`).join('')}</div>
-              <div class="dt-board"></div></div>`;
-        container.prepend(panel);
-        panel.querySelector('select').value = String(NT.getSpeed());
-        const board = panel.querySelector('.dt-board');
-        const hand = document.createElement('div');
-        hand.className = 'nbt-hand dt-hand'; hand.innerHTML = NT.handSVG();
-        panel.appendChild(hand);
-        const arm = panel.querySelector('#nbtArm');
-        const alive = () => token === run && panel.isConnected;
-        let finished = false;
-        const finish = () => { if (finished) return; finished = true; if (o.onDone) o.onDone(); };
-
-        function show(i, speak) {
-            steps.forEach((_, k) => {
-                const p = panel.querySelector(`.dt-pill[data-i="${k}"]`);
-                p.classList.toggle('on', k === i); p.classList.toggle('done', k < i);
-            });
-            board.innerHTML = steps[i].board;
-            const hl = board.querySelector('.dt-hl');
-            if (hl) {
-                const pr = panel.getBoundingClientRect(), r = hl.getBoundingClientRect();
-                hand.style.transform = 'rotate(0deg)';
-                hand.style.left = (r.left - pr.left - 34) + 'px';
-                hand.style.top = (r.top - pr.top + r.height / 2) + 'px';
-                hand.classList.add('nbt-on');
-                arm.style.transform = 'rotate(25deg)';
-            } else { hand.classList.remove('nbt-on'); arm.style.transform = 'rotate(-20deg)'; }
-            return speak ? NT.say(panel, steps[i].say, steps[i].f) : (panel.querySelector('.nbt-text').textContent = steps[i].say, panel.querySelector('.nbt-chip').textContent = steps[i].f);
-        }
-        async function lesson(from) {
-            for (let i = from; i < steps.length; i++) {
-                if (!alive()) return;
-                await show(i, true);
-                if (!alive()) return;
+        function stopTour() { tour = false; const b = root.querySelector('#n4Tour'); if (b) b.textContent = 'Start auto tour'; }
+        async function runTour() {
+            tour = true; root.querySelector('#n4Tour').textContent = 'Stop auto tour';
+            const mr = Math.floor(rows / 2), mc = Math.floor(cols / 2);
+            const stops = [[mr, mc], [0, 0], [0, cols - 1], [rows - 1, cols - 1], [rows - 1, 0], [mr, 0], [0, mc]]
+                .filter((p, i, a) => a.findIndex(q => q[0] === p[0] && q[1] === p[1]) === i);
+            for (const [r, c] of stops) {
+                if (!tour || !root.isConnected) break;
+                await select(r, c);
+                await sleep(500);
             }
-            if (alive()) { hand.classList.remove('nbt-on'); arm.style.transform = 'rotate(0deg)'; finish(); }
+            if (root.isConnected) stopTour();
         }
-        panel.addEventListener('click', e => {
-            const a = e.target.dataset && e.target.dataset.a, pill = e.target.closest && e.target.closest('.dt-pill');
-            if (a === 'mute') { NT.setMuted(!NT.getMuted()); e.target.textContent = NT.getMuted() ? '🔇 Voice off' : '🔊 Voice on'; if (NT.getMuted()) NT.stopSpeech(); }
-            if (a === 'skip') { run++; NT.stopSpeech(); panel.querySelector('.nbt-boy-wrap').classList.remove('nbt-talking'); show(steps.length - 1, false); hand.classList.remove('nbt-on'); finish(); }
-            if (a === 'replay') { if (o.onReplay) o.onReplay(); finished = false; start(o); }
-            if (pill) { run++; NT.stopSpeech(); const i = +pill.dataset.i; const t2 = ++run; panel.querySelector('.nbt-boy-wrap').classList.remove('nbt-talking'); setTimeout(() => { if (panel.isConnected) { o.__resume = t2; resumeAt(i, t2); } }, 50); }
-        });
-        panel.addEventListener('change', e => { if (e.target.dataset.a === 'speed') NT.setSpeed(parseFloat(e.target.value)); });
-        // jump to a step and keep narrating from there
-        function resumeAt(i, t2) {
-            const al = () => t2 === run && panel.isConnected;
-            (async () => {
-                for (let k = i; k < steps.length; k++) { if (!al()) return; await show(k, true); if (!al()) return; }
-                if (al()) { hand.classList.remove('nbt-on'); arm.style.transform = 'rotate(0deg)'; finish(); }
-            })();
-        }
-        lesson(0);
+        root.querySelector('#n4Replay').onclick = () => { stopTour(); select(sel.r, sel.c); };
+        root.querySelector('#n4Tour').onclick = () => { if (tour) { stopTour(); token++; stopSpeech(); } else runTour(); };
+        root.querySelector('#n4Mute').onclick = e => { muted = !muted; e.target.textContent = muted ? '🔇 Sound off' : '🔊 Sound on'; if (muted) stopSpeech(); };
+        root.querySelector('#n4Clear').onclick = () => { tour = false; token++; stopSpeech(); if (o.onClear) o.onClear(); };
+        select(sel.r, sel.c);
     }
-    return { start };
+    return { show: render };
 })();
 </script>
 
