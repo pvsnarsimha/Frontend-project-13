@@ -120848,6 +120848,7 @@ document.getElementById('lc723Btn')?.addEventListener('click', showCandyCrushSet
 .n4-btns button{border:0;border-radius:999px;padding:7px 20px;background:#e2e8f0;color:#334155;font-weight:700;cursor:pointer}
 .n4-btns button:hover{background:#cbd5e1}
 .n4-btns button.red{background:#fee2e2;color:#b91c1c}
+.n4-btns select{border:0;border-radius:999px;padding:7px 14px;background:#e2e8f0;color:#334155;font-weight:700;max-width:260px}
 @media(prefers-reduced-motion:reduce){.n4-cell,.n4-dir{transition:none}.n4-cell.n4-pop{animation:none}}
 </style>
 <script>
@@ -120876,7 +120877,9 @@ window.Neighbors4DViz = (function () {
                 try {
                     synth.cancel();
                     const u = new SpeechSynthesisUtterance(text);
-                    u.rate = 0.95; u.pitch = 1.1;
+                    const v = pickVoice();
+                    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-IN'; }
+                    u.rate = 0.9; u.pitch = 1;
                     u.onend = () => setTimeout(finMin, 150); u.onerror = finMin;
                     synth.speak(u);
                     setTimeout(finMin, est * 2 + 2500);
@@ -120887,6 +120890,28 @@ window.Neighbors4DViz = (function () {
         });
     }
     const stopSpeech = () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); };
+
+    // ---- voice: Indian English (en-IN) by default, user can pick another ----
+    const VKEY = 'n4Voice';
+    const getSaved = () => { try { return localStorage.getItem(VKEY) || ''; } catch (e) { return ''; } };
+    const setSaved = v => { try { localStorage.setItem(VKEY, v); } catch (e) { /* storage blocked */ } };
+    const allVoices = () => (window.speechSynthesis ? window.speechSynthesis.getVoices() : []).filter(v => /^en/i.test(v.lang));
+    const isIN = v => /en[-_]IN/i.test(v.lang) || /india/i.test(v.name);
+    function pickVoice() {
+        const vs = allVoices(), saved = getSaved();
+        const byName = saved && vs.find(v => v.name === saved);
+        if (byName) return byName;
+        const ind = vs.filter(isIN);
+        return ind.find(v => /natural|neural|online|google|neerja|heera|ravi/i.test(v.name)) || ind[0] || null;
+    }
+    function fillVoiceSelect(sel) {
+        const vs = allVoices().sort((a, b) => (isIN(b) - isIN(a)) || a.name.localeCompare(b.name));
+        const cur = pickVoice();
+        sel.innerHTML = `<option value="">${vs.some(isIN) ? 'Voice: Indian English (auto)' : 'Voice: Indian English (not found, default)'}</option>` +
+            vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}">${isIN(v) ? '★ ' : ''}${v.name} (${v.lang})</option>`).join('');
+        const saved = getSaved();
+        sel.value = saved && vs.some(v => v.name === saved) ? saved : '';
+    }
 
     function render(o) {
         const M = o.matrix, rows = M.length, cols = M[0].length;
@@ -120909,6 +120934,7 @@ window.Neighbors4DViz = (function () {
               <button id="n4Replay">Replay animation</button>
               <button id="n4Tour">Start auto tour</button>
               <button id="n4Mute">${muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
+              <select id="n4Voice" title="Choose the voice"></select>
               <button id="n4Clear" class="red">Clear &amp; restore matrix</button>
             </div></div>`;
         const grid = root.querySelector('#n4Grid');
@@ -120989,6 +121015,10 @@ window.Neighbors4DViz = (function () {
         root.querySelector('#n4Replay').onclick = () => { stopTour(); select(sel.r, sel.c); };
         root.querySelector('#n4Tour').onclick = () => { if (tour) { stopTour(); token++; stopSpeech(); } else runTour(); };
         root.querySelector('#n4Mute').onclick = e => { muted = !muted; e.target.textContent = muted ? '🔇 Sound off' : '🔊 Sound on'; if (muted) stopSpeech(); };
+        const vsel = root.querySelector('#n4Voice');
+        fillVoiceSelect(vsel);
+        if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => { if (vsel.isConnected) fillVoiceSelect(vsel); };
+        vsel.onchange = () => { setSaved(vsel.value); stopSpeech(); const t = vsel.options[vsel.selectedIndex].text.replace(/^★ /, ''); speak('Hello, this is the new voice.'); };
         root.querySelector('#n4Clear').onclick = () => { tour = false; token++; stopSpeech(); if (o.onClear) o.onClear(); };
         select(sel.r, sel.c);
     }
