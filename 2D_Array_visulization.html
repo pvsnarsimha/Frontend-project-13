@@ -120805,9 +120805,9 @@ document.getElementById('lc723Btn')?.addEventListener('click', showCandyCrushSet
 })();
 </script>
 
-<!-- ========== 4-Directional Neighbors: animated, clickable, with voice ========== -->
+<!-- ========== 4-Directional Neighbors: animated, clickable, with voice (English / Telugu / Hindi) ========== -->
 <style>
-.n4-wrap{width:min(940px,100%);margin:0 auto;font-family:'Segoe UI',system-ui,sans-serif}
+.n4-wrap{width:min(940px,100%);margin:0 auto;font-family:'Segoe UI','Nirmala UI',system-ui,sans-serif}
 .n4-title{text-align:center;font-size:30px;font-weight:800;color:#8d96a7;margin-bottom:2px}
 .n4-sub{text-align:center;color:#334155;font-size:15px;margin-bottom:14px}
 .n4-card{display:flex;flex-wrap:wrap;gap:18px;background:#fff;border-radius:26px;padding:22px;box-shadow:0 18px 50px rgba(15,23,42,.18)}
@@ -120840,45 +120840,166 @@ document.getElementById('lc723Btn')?.addEventListener('click', showCandyCrushSet
 .n4-dir.on{opacity:1;transform:none}
 .n4-dir b{display:block;color:var(--c);font-size:15px;letter-spacing:.5px}
 .n4-dir em{display:block;font-style:normal;color:#334155;font-size:13px;font-weight:600}
-.n4-caption{background:#0f172a;color:#fff;border-radius:14px;padding:12px 18px;margin-top:14px;font-size:19px;font-weight:700;line-height:1.4;text-align:center;min-height:30px}
-.n4-help{background:#f1f5f9;border-radius:14px;padding:10px 16px;margin-top:14px;color:#334155;font-size:14px;line-height:1.5}
-.n4-help summary{cursor:pointer;font-weight:800;color:#0f172a}
-.n4-help ol{margin:8px 0 2px 18px;padding:0}.n4-help li{margin-bottom:5px}
-.n4-dir small{font:12px 'Consolas',monospace;color:#94a3b8}
+.n4-dir small{font:12px 'Consolas','Nirmala UI',monospace;color:#94a3b8}
 .n4-dir span{font-size:24px;font-weight:800;color:var(--c)}
 .n4-dir.none span{font-size:14px;color:#ef4444}
 .n4-found{font-weight:800;color:#8d96a7;margin-top:6px}
+.n4-caption{background:#0f172a;color:#fff;border-radius:14px;padding:12px 18px;margin-top:14px;font-size:19px;font-weight:700;line-height:1.5;text-align:center;min-height:30px}
+.n4-hint{background:#fef3c7;color:#92400e;border-radius:12px;padding:8px 14px;margin-top:10px;font-size:13px;font-weight:600;display:none}
+.n4-help{background:#f1f5f9;border-radius:14px;padding:10px 16px;margin-top:14px;color:#334155;font-size:14px;line-height:1.6}
+.n4-help summary{cursor:pointer;font-weight:800;color:#0f172a}
+.n4-help ol{margin:8px 0 2px 18px;padding:0}.n4-help li{margin-bottom:5px}
 .n4-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:22px;margin:16px 0 8px;color:#334155;font-size:14px}
 .n4-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .n4-btns button{border:0;border-radius:999px;padding:7px 20px;background:#e2e8f0;color:#334155;font-weight:700;cursor:pointer}
 .n4-btns button:hover{background:#cbd5e1}
 .n4-btns button.red{background:#fee2e2;color:#b91c1c}
 .n4-btns select{border:0;border-radius:999px;padding:7px 14px;background:#e2e8f0;color:#334155;font-weight:700;max-width:260px}
+.n4-btns select.lang{background:#dbeafe;color:#1d4ed8}
 @media(prefers-reduced-motion:reduce){.n4-cell,.n4-dir{transition:none}.n4-cell.n4-pop{animation:none}}
 </style>
 <script>
 window.Neighbors4DViz = (function () {
+    // ---------------- text for every language (screen text, caption and speech all come from here) ----------------
+    const LANGS = { en: 'English (India)', te: 'తెలుగు', hi: 'हिन्दी' };
+    const STR = {
+        en: {
+            title: '4-Directional Neighbors',
+            sub: 'Click any cell. Watch it reach up, down, left and right, and see what happens at the edges.',
+            sel: 'Selected cell', cell: 'cell', none: 'no cell', outside: 'is outside the grid',
+            found: (f) => `Found ${f} neighbor${f === 1 ? '' : 's'} (${4 - f} side${4 - f === 1 ? '' : 's'} had no cell)`,
+            capIntro: 'Press <b>Replay animation</b> to hear the explanation.',
+            dirs: {
+                up: { name: 'UP', plain: 'the cell just ABOVE', rule: 'row − 1, same column', phrase: 'Above', move: 'one row up', edge: 'the top edge' },
+                right: { name: 'RIGHT', plain: 'the cell just to the RIGHT', rule: 'same row, column + 1', phrase: 'To the right', move: 'one column to the right', edge: 'the right edge' },
+                down: { name: 'DOWN', plain: 'the cell just BELOW', rule: 'row + 1, same column', phrase: 'Below', move: 'one row down', edge: 'the bottom edge' },
+                left: { name: 'LEFT', plain: 'the cell just to the LEFT', rule: 'same row, column − 1', phrase: 'To the left', move: 'one column to the left', edge: 'the left edge' }
+            },
+            helpSum: 'New to this? How to read it',
+            help: [
+                'Every cell has an address <b>(row, column)</b>. Counting starts at <b>0</b>, so (2, 2) means the 3rd row and 3rd column.',
+                '<b>Neighbors</b> are the cells that touch the selected cell on a flat side: one above, one below, one on the left and one on the right.',
+                'To find them, change only ONE number: <span style="color:#0284c7">⬆ Up = row − 1</span> · <span style="color:#ea8a00">⬇ Down = row + 1</span> · <span style="color:#9333ea">⬅ Left = column − 1</span> · <span style="color:#16a34a">➡ Right = column + 1</span>.',
+                'If the new address is outside the grid (a negative number, or bigger than the last row or column), that neighbor does not exist. That is an <b>edge</b>, marked with a red ✕.'
+            ],
+            legend: ['⬆ Up: row − 1', '⬇ Down: row + 1', '⬅ Left: column − 1', '➡ Right: column + 1'],
+            btn: { replay: 'Replay animation', tour: 'Start auto tour', tourStop: 'Stop auto tour', on: '🔊 Sound on', off: '🔇 Sound off', test: '🔈 Test voice', clear: 'Clear & restore matrix' },
+            rates: ['Speed: Very slow', 'Speed: Slow (clear)', 'Speed: Normal', 'Speed: Fast'],
+            voiceAuto: 'Voice: Indian English (auto)', voiceNone: 'Voice: Indian English (not found, default)',
+            hint: '', empty: 'empty',
+            say: {
+                intro: (r, c, v) => [`Selected cell: row ${r}, column ${c}.`, `Its value is ${v}.`, 'Let us find the four cells touching it.'],
+                dir: (d, nr, nc, v) => `${d.phrase}: ${d.move}, row ${nr}, column ${nc}. The value is ${v}.`,
+                edge: (d, nr, nc) => `${d.phrase}: ${d.move} would be row ${nr}, column ${nc}, which is outside the grid. So there is no neighbor here. This cell is on ${d.edge}.`,
+                final: (f) => `So this cell has ${f} neighbor${f === 1 ? '' : 's'}.${f < 4 ? ' The other sides are outside the grid.' : ''}`,
+                test: 'Hello. Can you hear me clearly? This is the Indian English voice. Up, down, left and right.',
+                newVoice: 'Hello, this is the new voice.'
+            }
+        },
+        te: {
+            title: '4-దిశల పొరుగు గడులు',
+            sub: 'ఏదైనా గడిని క్లిక్ చేయండి. అది పైకి, కిందకి, ఎడమ, కుడి వైపు ఎలా చేరుతుందో, అంచుల్లో ఏమవుతుందో చూడండి.',
+            sel: 'ఎంచుకున్న గడి', cell: 'గడి', none: 'గడి లేదు', outside: 'గ్రిడ్ బయట ఉంది',
+            found: (f) => `${f} పొరుగు గడులు దొరికాయి (${4 - f} వైపుల్లో గడి లేదు)`,
+            capIntro: 'వివరణ వినడానికి <b>మళ్లీ ప్లే చేయండి</b> నొక్కండి.',
+            dirs: {
+                up: { name: 'పైకి (UP)', plain: 'సరిగ్గా పైన ఉన్న గడి', rule: 'రో − 1, కాలమ్ అదే', phrase: 'పైన', move: 'ఒక రో పైకి', edge: 'పై అంచులో' },
+                right: { name: 'కుడి (RIGHT)', plain: 'సరిగ్గా కుడివైపు ఉన్న గడి', rule: 'రో అదే, కాలమ్ + 1', phrase: 'కుడివైపు', move: 'ఒక కాలమ్ కుడివైపుకి', edge: 'కుడి అంచులో' },
+                down: { name: 'కిందికి (DOWN)', plain: 'సరిగ్గా కింద ఉన్న గడి', rule: 'రో + 1, కాలమ్ అదే', phrase: 'కింద', move: 'ఒక రో కిందికి', edge: 'కింది అంచులో' },
+                left: { name: 'ఎడమ (LEFT)', plain: 'సరిగ్గా ఎడమవైపు ఉన్న గడి', rule: 'రో అదే, కాలమ్ − 1', phrase: 'ఎడమవైపు', move: 'ఒక కాలమ్ ఎడమవైపుకి', edge: 'ఎడమ అంచులో' }
+            },
+            helpSum: 'కొత్తవారికి: ఎలా చదవాలి',
+            help: [
+                'ప్రతి గడికి ఒక చిరునామా ఉంటుంది <b>(రో, కాలమ్)</b>. లెక్క <b>0</b> నుండి మొదలవుతుంది, కాబట్టి (2, 2) అంటే 3వ రో, 3వ కాలమ్.',
+                '<b>పొరుగు గడులు</b> అంటే ఎంచుకున్న గడిని పక్కల నుండి తాకే గడులు: ఒకటి పైన, ఒకటి కింద, ఒకటి ఎడమ, ఒకటి కుడి.',
+                'వాటిని కనుగొనడానికి ఒక్క సంఖ్యను మాత్రమే మార్చండి: <span style="color:#0284c7">⬆ పైన = రో − 1</span> · <span style="color:#ea8a00">⬇ కింద = రో + 1</span> · <span style="color:#9333ea">⬅ ఎడమ = కాలమ్ − 1</span> · <span style="color:#16a34a">➡ కుడి = కాలమ్ + 1</span>.',
+                'కొత్త చిరునామా గ్రిడ్ బయట ఉంటే (రుణ సంఖ్య, లేదా చివరి రో/కాలమ్ కంటే ఎక్కువ), ఆ పొరుగు గడి ఉండదు. అదే <b>అంచు</b>, ఎరుపు ✕ తో చూపబడుతుంది.'
+            ],
+            legend: ['⬆ పైన: రో − 1', '⬇ కింద: రో + 1', '⬅ ఎడమ: కాలమ్ − 1', '➡ కుడి: కాలమ్ + 1'],
+            btn: { replay: 'మళ్లీ ప్లే చేయండి', tour: 'ఆటో టూర్ ప్రారంభించండి', tourStop: 'ఆటో టూర్ ఆపండి', on: '🔊 శబ్దం ఆన్', off: '🔇 శబ్దం ఆఫ్', test: '🔈 వాయిస్ టెస్ట్', clear: 'క్లియర్ చేసి మ్యాట్రిక్స్ తిరిగి తీసుకురండి' },
+            rates: ['వేగం: చాలా నెమ్మదిగా', 'వేగం: నెమ్మదిగా (స్పష్టం)', 'వేగం: మామూలు', 'వేగం: వేగంగా'],
+            voiceAuto: 'వాయిస్: తెలుగు (ఆటో)', voiceNone: 'వాయిస్: తెలుగు (ఈ పరికరంలో లేదు)',
+            hint: 'ఈ పరికరంలో తెలుగు వాయిస్ లేదు, కాబట్టి శబ్దం రాదు కానీ తెలుగు క్యాప్షన్లు కనిపిస్తాయి. వాయిస్ కోసం Microsoft Edge వాడండి ("Shruti Online (Natural) – Telugu") లేదా Windows: Settings → Time & language → Speech → Add voices → Telugu.',
+            empty: 'ఖాళీ',
+            say: {
+                intro: (r, c, v) => [`ఎంచుకున్న గడి: రో ${r}, కాలమ్ ${c}.`, `దాని విలువ ${v}.`, 'ఇప్పుడు దీన్ని తాకే నాలుగు గడులను కనుగొందాం.'],
+                dir: (d, nr, nc, v) => `${d.phrase}: ${d.move}, రో ${nr}, కాలమ్ ${nc}. విలువ ${v}.`,
+                edge: (d, nr, nc) => `${d.phrase}: ${d.move} వెళ్తే రో ${nr}, కాలమ్ ${nc} అవుతుంది, అది గ్రిడ్ బయట ఉంది. కాబట్టి ఇక్కడ పొరుగు గడి లేదు. ఈ గడి ${d.edge} ఉంది.`,
+                final: (f) => `ఈ గడికి ${f} పొరుగు గడులు ఉన్నాయి.${f < 4 ? ' మిగతా వైపులు గ్రిడ్ బయట ఉన్నాయి.' : ''}`,
+                test: 'నమస్కారం. నా మాట స్పష్టంగా వినిపిస్తోందా? పైన, కింద, ఎడమ, కుడి.',
+                newVoice: 'నమస్కారం, ఇది కొత్త వాయిస్.'
+            }
+        },
+        hi: {
+            title: '4-दिशा के पड़ोसी सेल',
+            sub: 'किसी भी सेल पर क्लिक करें। देखें कि वह ऊपर, नीचे, बाएँ और दाएँ कैसे पहुँचता है, और किनारों पर क्या होता है।',
+            sel: 'चुना हुआ सेल', cell: 'सेल', none: 'सेल नहीं', outside: 'ग्रिड के बाहर है',
+            found: (f) => `${f} पड़ोसी मिले (${4 - f} तरफ़ कोई सेल नहीं)`,
+            capIntro: 'समझाना सुनने के लिए <b>फिर से चलाएँ</b> दबाएँ।',
+            dirs: {
+                up: { name: 'ऊपर (UP)', plain: 'ठीक ऊपर वाला सेल', rule: 'रो − 1, कॉलम वही', phrase: 'ऊपर', move: 'एक रो ऊपर', edge: 'ऊपरी किनारे' },
+                right: { name: 'दाएँ (RIGHT)', plain: 'ठीक दाएँ वाला सेल', rule: 'रो वही, कॉलम + 1', phrase: 'दाएँ', move: 'एक कॉलम दाएँ', edge: 'दाएँ किनारे' },
+                down: { name: 'नीचे (DOWN)', plain: 'ठीक नीचे वाला सेल', rule: 'रो + 1, कॉलम वही', phrase: 'नीचे', move: 'एक रो नीचे', edge: 'निचले किनारे' },
+                left: { name: 'बाएँ (LEFT)', plain: 'ठीक बाएँ वाला सेल', rule: 'रो वही, कॉलम − 1', phrase: 'बाएँ', move: 'एक कॉलम बाएँ', edge: 'बाएँ किनारे' }
+            },
+            helpSum: 'नए हैं? इसे कैसे पढ़ें',
+            help: [
+                'हर सेल का एक पता होता है <b>(रो, कॉलम)</b>। गिनती <b>0</b> से शुरू होती है, इसलिए (2, 2) का मतलब 3री रो और 3रा कॉलम।',
+                '<b>पड़ोसी</b> वे सेल हैं जो चुने हुए सेल को सीधी तरफ़ से छूते हैं: एक ऊपर, एक नीचे, एक बाएँ और एक दाएँ।',
+                'इन्हें ढूँढने के लिए सिर्फ़ एक संख्या बदलें: <span style="color:#0284c7">⬆ ऊपर = रो − 1</span> · <span style="color:#ea8a00">⬇ नीचे = रो + 1</span> · <span style="color:#9333ea">⬅ बाएँ = कॉलम − 1</span> · <span style="color:#16a34a">➡ दाएँ = कॉलम + 1</span>।',
+                'अगर नया पता ग्रिड के बाहर है (ऋणात्मक संख्या, या आख़िरी रो/कॉलम से बड़ी), तो वह पड़ोसी मौजूद नहीं है। यही <b>किनारा</b> है, जिसे लाल ✕ से दिखाया गया है।'
+            ],
+            legend: ['⬆ ऊपर: रो − 1', '⬇ नीचे: रो + 1', '⬅ बाएँ: कॉलम − 1', '➡ दाएँ: कॉलम + 1'],
+            btn: { replay: 'फिर से चलाएँ', tour: 'ऑटो टूर शुरू करें', tourStop: 'ऑटो टूर रोकें', on: '🔊 आवाज़ चालू', off: '🔇 आवाज़ बंद', test: '🔈 आवाज़ टेस्ट करें', clear: 'साफ़ करें और मैट्रिक्स वापस लाएँ' },
+            rates: ['गति: बहुत धीमी', 'गति: धीमी (साफ़)', 'गति: सामान्य', 'गति: तेज़'],
+            voiceAuto: 'आवाज़: हिन्दी (ऑटो)', voiceNone: 'आवाज़: हिन्दी (इस डिवाइस में नहीं)',
+            hint: 'इस डिवाइस में हिन्दी आवाज़ नहीं मिली, इसलिए आवाज़ नहीं आएगी लेकिन हिन्दी कैप्शन दिखेंगे। आवाज़ के लिए Microsoft Edge इस्तेमाल करें ("Swara Online (Natural) – Hindi") या Windows: Settings → Time & language → Speech → Add voices → Hindi।',
+            empty: 'खाली',
+            say: {
+                intro: (r, c, v) => [`चुना हुआ सेल: रो ${r}, कॉलम ${c}।`, `इसकी वैल्यू ${v} है।`, 'अब इसे छूने वाले चार सेल ढूँढते हैं।'],
+                dir: (d, nr, nc, v) => `${d.phrase}: ${d.move}, रो ${nr}, कॉलम ${nc}। वैल्यू ${v} है।`,
+                edge: (d, nr, nc) => `${d.phrase}: ${d.move} जाने पर रो ${nr}, कॉलम ${nc} आएगा, जो ग्रिड के बाहर है। इसलिए यहाँ कोई पड़ोसी नहीं है। यह सेल ${d.edge} पर है।`,
+                final: (f) => `इस सेल के ${f} पड़ोसी हैं।${f < 4 ? ' बाकी तरफ़ें ग्रिड के बाहर हैं।' : ''}`,
+                test: 'नमस्ते। क्या मेरी आवाज़ साफ़ सुनाई दे रही है? ऊपर, नीचे, बाएँ, दाएँ।',
+                newVoice: 'नमस्ते, यह नई आवाज़ है।'
+            }
+        }
+    };
     const DIRS = [
-        { k: 'up', name: 'UP', arrow: '⬆', dr: -1, dc: 0, rule: 'row − 1, same column', plain: 'the cell just ABOVE', phrase: 'Above', move: 'one row up', color: '#4fc3f7', bg: 'rgba(79,195,247,.14)', edge: 'the top edge' },
-        { k: 'right', name: 'RIGHT', arrow: '➡', dr: 0, dc: 1, rule: 'same row, column + 1', plain: 'the cell just to the RIGHT', phrase: 'To the right', move: 'one column to the right', color: '#66bb6a', bg: 'rgba(129,199,132,.16)', edge: 'the right edge' },
-        { k: 'down', name: 'DOWN', arrow: '⬇', dr: 1, dc: 0, rule: 'row + 1, same column', plain: 'the cell just BELOW', phrase: 'Below', move: 'one row down', color: '#ffa726', bg: 'rgba(255,183,77,.18)', edge: 'the bottom edge' },
-        { k: 'left', name: 'LEFT', arrow: '⬅', dr: 0, dc: -1, rule: 'same row, column − 1', plain: 'the cell just to the LEFT', phrase: 'To the left', move: 'one column to the left', color: '#ab47bc', bg: 'rgba(186,104,200,.16)', edge: 'the left edge' }
+        { k: 'up', arrow: '⬆', dr: -1, dc: 0, color: '#4fc3f7', bg: 'rgba(79,195,247,.14)' },
+        { k: 'right', arrow: '➡', dr: 0, dc: 1, color: '#66bb6a', bg: 'rgba(129,199,132,.16)' },
+        { k: 'down', arrow: '⬇', dr: 1, dc: 0, color: '#ffa726', bg: 'rgba(255,183,77,.18)' },
+        { k: 'left', arrow: '⬅', dr: 0, dc: -1, color: '#ab47bc', bg: 'rgba(186,104,200,.16)' }
     ];
     let muted = false, token = 0, tour = false;
+    let lang = 'en';
+    try { const s = localStorage.getItem('n4Lang'); if (s && STR[s]) lang = s; } catch (e) { /* storage blocked */ }
 
     const show = v => (v === '' || v === null || v === undefined) ? '·' : String(v);
-    const say = v => (v === '' || v === null || v === undefined) ? 'empty' : String(v);
+    const say = v => (v === '' || v === null || v === undefined) ? STR[lang].empty : String(v);
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    // Speaks ONE short sentence at a time (clearer, avoids Chrome cutting long speech), with a
-    // visible caption, a pause between sentences, and full volume.
+    // ---------------- voice ----------------
     let spGen = 0, capEl = null, rate = 0.85;
     const RKEY = 'n4Rate';
     try { const s = parseFloat(localStorage.getItem(RKEY)); if (s >= 0.5 && s <= 1.3) rate = s; } catch (e) { /* storage blocked */ }
+    const getSaved = () => { try { return localStorage.getItem('n4Voice_' + lang) || ''; } catch (e) { return ''; } };
+    const setSaved = v => { try { localStorage.setItem('n4Voice_' + lang, v); } catch (e) { /* storage blocked */ } };
+    const voicesFor = () => (window.speechSynthesis ? window.speechSynthesis.getVoices() : [])
+        .filter(v => new RegExp('^' + lang, 'i').test(v.lang));
+    const isIN = v => /en[-_]IN/i.test(v.lang) || /india/i.test(v.name);
+    const GOOD = /natural|neural|online|google|neerja|heera|ravi|swara|madhur|shruti|mohan/i;
+    function pickVoice() {
+        const vs = voicesFor(), saved = getSaved();
+        const byName = saved && vs.find(v => v.name === saved);
+        if (byName) return byName;
+        const pool = lang === 'en' ? vs.filter(isIN) : vs;
+        return pool.find(v => GOOD.test(v.name)) || pool[0] || null;
+    }
     const caption = t => { if (capEl && capEl.isConnected) capEl.textContent = t; };
     const stopSpeech = () => { spGen++; if (window.speechSynthesis) window.speechSynthesis.cancel(); };
 
-    function speakOne(sentence, gen) {
+    function speakOne(sentence) {
         return new Promise(resolve => {
             const est = (sentence.length * 75 + 500) / rate;
             const synth = window.speechSynthesis;
@@ -120886,11 +121007,13 @@ window.Neighbors4DViz = (function () {
             const t0 = Date.now();
             const fin = () => { if (!done) { done = true; resolve(); } };
             const finMin = () => { const w = est * 0.5 - (Date.now() - t0); w > 0 ? setTimeout(fin, w) : fin(); };
-            if (!muted && synth && window.SpeechSynthesisUtterance) {
+            const v = pickVoice();
+            // Telugu / Hindi need a matching voice, otherwise an English voice would mispronounce the script
+            const canSpeak = !muted && synth && window.SpeechSynthesisUtterance && (lang === 'en' || v);
+            if (canSpeak) {
                 try {
                     synth.resume();
                     const u = new SpeechSynthesisUtterance(sentence);
-                    const v = pickVoice();
                     if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-IN'; }
                     u.rate = rate; u.pitch = 1; u.volume = 1;
                     u.onend = finMin; u.onerror = finMin;
@@ -120904,73 +121027,64 @@ window.Neighbors4DViz = (function () {
     }
     async function speak(text) {
         const gen = ++spGen;
-        const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
+        const parts = text.match(/[^.!?।]+[.!?।]*/g) || [text];
         for (const s of parts) {
             const t = s.trim();
             if (!t) continue;
             if (gen !== spGen) return;
             caption(t);
-            await speakOne(t, gen);
+            await speakOne(t);
             if (gen !== spGen) return;
             await sleep(350);
         }
     }
 
-    // ---- voice: Indian English (en-IN) by default, user can pick another ----
-    const VKEY = 'n4Voice';
-    const getSaved = () => { try { return localStorage.getItem(VKEY) || ''; } catch (e) { return ''; } };
-    const setSaved = v => { try { localStorage.setItem(VKEY, v); } catch (e) { /* storage blocked */ } };
-    const allVoices = () => (window.speechSynthesis ? window.speechSynthesis.getVoices() : []).filter(v => /^en/i.test(v.lang));
-    const isIN = v => /en[-_]IN/i.test(v.lang) || /india/i.test(v.name);
-    function pickVoice() {
-        const vs = allVoices(), saved = getSaved();
-        const byName = saved && vs.find(v => v.name === saved);
-        if (byName) return byName;
-        const ind = vs.filter(isIN);
-        return ind.find(v => /natural|neural|online|google|neerja|heera|ravi/i.test(v.name)) || ind[0] || null;
-    }
-    function fillVoiceSelect(sel) {
-        const vs = allVoices().sort((a, b) => (isIN(b) - isIN(a)) || a.name.localeCompare(b.name));
-        const cur = pickVoice();
-        sel.innerHTML = `<option value="">${vs.some(isIN) ? 'Voice: Indian English (auto)' : 'Voice: Indian English (not found, default)'}</option>` +
+    function fillVoiceSelect(sel, hintEl) {
+        const T = STR[lang];
+        const vs = voicesFor().sort((a, b) => (isIN(b) - isIN(a)) || a.name.localeCompare(b.name));
+        sel.innerHTML = `<option value="">${vs.length ? T.voiceAuto : T.voiceNone}</option>` +
             vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}">${isIN(v) ? '★ ' : ''}${v.name} (${v.lang})</option>`).join('');
         const saved = getSaved();
         sel.value = saved && vs.some(v => v.name === saved) ? saved : '';
+        if (hintEl) {
+            const missing = lang !== 'en' && !vs.length;
+            hintEl.style.display = missing ? 'block' : 'none';
+            hintEl.textContent = missing ? T.hint : '';
+        }
     }
 
+    // ---------------- view ----------------
     function render(o) {
+        const T = STR[lang];
         const M = o.matrix, rows = M.length, cols = M[0].length;
         const root = o.container;
         let sel = { r: o.row, c: o.col };
+        const D = k => T.dirs[k];
 
         root.innerHTML = `<div class="n4-wrap">
-            <div class="n4-title">4-Directional Neighbors</div>
-            <div class="n4-sub">Click any cell. Watch it reach up, down, left and right, and see what happens at the edges.</div>
+            <div class="n4-title">${T.title}</div>
+            <div class="n4-sub">${T.sub}</div>
             <div class="n4-card">
               <div class="n4-gridwrap"><div class="n4-grid" id="n4Grid"></div></div>
               <div class="n4-panel">
-                <div class="n4-lab">Selected cell</div><div class="n4-selv" id="n4Sel"></div>
-                <div id="n4Dirs">${DIRS.map(d => `<div class="n4-dir" data-k="${d.k}" style="--c:${d.color};--bg:${d.bg}"><div><b>${d.arrow} ${d.name}</b><em>${d.plain}</em><small>${d.rule}</small></div><span>—</span></div>`).join('')}</div>
+                <div class="n4-lab">${T.sel}</div><div class="n4-selv" id="n4Sel"></div>
+                <div id="n4Dirs">${DIRS.map(d => `<div class="n4-dir" data-k="${d.k}" style="--c:${d.color};--bg:${d.bg}"><div><b>${d.arrow} ${D(d.k).name}</b><em>${D(d.k).plain}</em><small>${D(d.k).rule}</small></div><span>—</span></div>`).join('')}</div>
                 <div class="n4-found" id="n4Found">&nbsp;</div>
               </div>
             </div>
-            <div class="n4-caption" id="n4Cap" aria-live="polite">Press <b>Replay animation</b> to hear the explanation.</div>
-            <details class="n4-help" open><summary>New to this? How to read it</summary>
-              <ol>
-                <li>Every cell has an address <b>(row, column)</b>. Counting starts at <b>0</b>, so (2, 2) means the 3rd row and 3rd column.</li>
-                <li><b>Neighbors</b> are the cells that touch the selected cell on a flat side: one above, one below, one on the left and one on the right.</li>
-                <li>To find them, change only ONE number: <span style="color:#0284c7">⬆ Up = row − 1</span> · <span style="color:#ea8a00">⬇ Down = row + 1</span> · <span style="color:#9333ea">⬅ Left = column − 1</span> · <span style="color:#16a34a">➡ Right = column + 1</span>.</li>
-                <li>If the new address is outside the grid (a negative number, or bigger than the last row or column), that neighbor does not exist. That is an <b>edge</b>, marked with a red ✕.</li>
-              </ol></details>
-            <div class="n4-legend"><span>⬆ Up: row − 1</span><span>⬇ Down: row + 1</span><span>⬅ Left: column − 1</span><span>➡ Right: column + 1</span></div>
+            <div class="n4-caption" id="n4Cap" aria-live="polite">${T.capIntro}</div>
+            <div class="n4-hint" id="n4Hint"></div>
+            <details class="n4-help" open><summary>${T.helpSum}</summary><ol>${T.help.map(x => `<li>${x}</li>`).join('')}</ol></details>
+            <div class="n4-legend">${T.legend.map(x => `<span>${x}</span>`).join('')}</div>
             <div class="n4-btns">
-              <button id="n4Replay">Replay animation</button>
-              <button id="n4Tour">Start auto tour</button>
-              <button id="n4Mute">${muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
-              <select id="n4Voice" title="Choose the voice"></select>
-              <select id="n4Rate" title="Speaking speed"><option value="0.65">Speed: Very slow</option><option value="0.85">Speed: Slow (clear)</option><option value="1">Speed: Normal</option><option value="1.2">Speed: Fast</option></select>
-              <button id="n4Test">🔈 Test voice</button>
-              <button id="n4Clear" class="red">Clear &amp; restore matrix</button>
+              <select id="n4Lang" class="lang" title="Language / భాష / भाषा">${Object.keys(LANGS).map(k => `<option value="${k}" ${k === lang ? 'selected' : ''}>🌐 ${LANGS[k]}</option>`).join('')}</select>
+              <button id="n4Replay">${T.btn.replay}</button>
+              <button id="n4Tour">${T.btn.tour}</button>
+              <button id="n4Mute">${muted ? T.btn.off : T.btn.on}</button>
+              <select id="n4Voice" title="Voice"></select>
+              <select id="n4Rate" title="Speed">${[0.65, 0.85, 1, 1.2].map((r, i) => `<option value="${r}">${T.rates[i]}</option>`).join('')}</select>
+              <button id="n4Test">${T.btn.test}</button>
+              <button id="n4Clear" class="red">${T.btn.clear}</button>
             </div></div>`;
         const grid = root.querySelector('#n4Grid');
         grid.style.gridTemplateColumns = `24px repeat(${cols}, 56px)`;
@@ -120993,7 +121107,7 @@ window.Neighbors4DViz = (function () {
 
         function reset() {
             cells.flat().forEach(el => { el.className = 'n4-cell'; el.querySelectorAll('.n4-arrow,.n4-edge').forEach(x => x.remove()); });
-            DIRS.forEach(d => { const e = dirEls[d.k]; e.classList.remove('on', 'none'); e.querySelector('span').textContent = '—'; e.querySelector('small').textContent = d.rule; });
+            DIRS.forEach(d => { const e = dirEls[d.k]; e.classList.remove('on', 'none'); e.querySelector('span').textContent = '—'; e.querySelector('small').textContent = D(d.k).rule; });
             root.querySelector('#n4Found').innerHTML = '&nbsp;';
         }
 
@@ -121004,39 +121118,39 @@ window.Neighbors4DViz = (function () {
             const centerEl = cells[r][c];
             centerEl.classList.add('n4-center');
             root.querySelector('#n4Sel').textContent = `(${r}, ${c}) = ${show(M[r][c])}`;
-            if (o.log) o.log(`📍 Selected (${r},${c}) = ${say(M[r][c])}`, 'info');
-            await speak(`Selected cell: row ${r}, column ${c}. Its value is ${say(M[r][c])}. Let us find the four cells touching it.`);
+            if (o.log) o.log(`📍 (${r},${c}) = ${say(M[r][c])}`, 'info');
+            await speak(T.say.intro(r, c, say(M[r][c])).join(' '));
             if (!alive(t)) return;
             let found = 0;
             for (const d of DIRS) {
-                const nr = r + d.dr, nc = c + d.dc, de = dirEls[d.k];
+                const nr = r + d.dr, nc = c + d.dc, de = dirEls[d.k], L = D(d.k);
                 const inside = nr >= 0 && nr < rows && nc >= 0 && nc < cols;
                 if (inside) {
                     const arrow = document.createElement('div'); arrow.className = `n4-arrow ${d.k}`; centerEl.appendChild(arrow);
                     requestAnimationFrame(() => arrow.classList.add('on'));
                     await sleep(260); if (!alive(t)) return;
                     const ne = cells[nr][nc]; ne.classList.add(`n4-${d.k}`, 'n4-pop');
-                    de.classList.add('on'); de.querySelector('small').textContent = `${d.rule}  →  cell (${nr}, ${nc})`;
+                    de.classList.add('on'); de.querySelector('small').textContent = `${L.rule}  →  ${T.cell} (${nr}, ${nc})`;
                     de.querySelector('span').textContent = show(M[nr][nc]);
                     found++;
-                    if (o.log) o.log(`  ${d.name}: (${nr},${nc}) = ${say(M[nr][nc])}`, 'info');
-                    await speak(`${d.phrase}: ${d.move}, row ${nr}, column ${nc}. The value is ${say(M[nr][nc])}.`);
+                    if (o.log) o.log(`  ${L.name}: (${nr},${nc}) = ${say(M[nr][nc])}`, 'info');
+                    await speak(T.say.dir(L, nr, nc, say(M[nr][nc])));
                 } else {
                     const x = document.createElement('div'); x.className = `n4-edge ${d.k}`; x.textContent = '✕'; centerEl.appendChild(x);
-                    de.classList.add('on', 'none'); de.querySelector('small').textContent = `${d.rule}  →  (${nr}, ${nc}) is outside the grid`;
-                    de.querySelector('span').textContent = 'no cell';
-                    await speak(`${d.phrase}: ${d.move} would be row ${nr}, column ${nc}, which is outside the grid. So there is no neighbor here. This cell is on ${d.edge}.`);
+                    de.classList.add('on', 'none'); de.querySelector('small').textContent = `${L.rule}  →  (${nr}, ${nc}) ${T.outside}`;
+                    de.querySelector('span').textContent = T.none;
+                    await speak(T.say.edge(L, nr, nc));
                 }
                 if (!alive(t)) return;
                 await sleep(200);
             }
-            root.querySelector('#n4Found').textContent = `Found ${found} neighbor${found === 1 ? '' : 's'} (${4 - found} side${4 - found === 1 ? '' : 's'} had no cell)`;
-            await speak(`So this cell has ${found} neighbor${found === 1 ? '' : 's'}.${found < 4 ? ' The other sides are outside the grid.' : ''}`);
+            root.querySelector('#n4Found').textContent = T.found(found);
+            await speak(T.say.final(found));
         }
 
-        function stopTour() { tour = false; const b = root.querySelector('#n4Tour'); if (b) b.textContent = 'Start auto tour'; }
+        function stopTour() { tour = false; const b = root.querySelector('#n4Tour'); if (b) b.textContent = T.btn.tour; }
         async function runTour() {
-            tour = true; root.querySelector('#n4Tour').textContent = 'Stop auto tour';
+            tour = true; root.querySelector('#n4Tour').textContent = T.btn.tourStop;
             const mr = Math.floor(rows / 2), mc = Math.floor(cols / 2);
             const stops = [[mr, mc], [0, 0], [0, cols - 1], [rows - 1, cols - 1], [rows - 1, 0], [mr, 0], [0, mc]]
                 .filter((p, i, a) => a.findIndex(q => q[0] === p[0] && q[1] === p[1]) === i);
@@ -121047,18 +121161,24 @@ window.Neighbors4DViz = (function () {
             }
             if (root.isConnected) stopTour();
         }
+        capEl = root.querySelector('#n4Cap');
+        const hintEl = root.querySelector('#n4Hint');
+        root.querySelector('#n4Lang').onchange = e => {
+            lang = e.target.value; try { localStorage.setItem('n4Lang', lang); } catch (x) { /* storage blocked */ }
+            tour = false; token++; stopSpeech();
+            render({ ...o, row: sel.r, col: sel.c });      // redraw everything in the new language and replay
+        };
         root.querySelector('#n4Replay').onclick = () => { stopTour(); select(sel.r, sel.c); };
         root.querySelector('#n4Tour').onclick = () => { if (tour) { stopTour(); token++; stopSpeech(); } else runTour(); };
-        root.querySelector('#n4Mute').onclick = e => { muted = !muted; e.target.textContent = muted ? '🔇 Sound off' : '🔊 Sound on'; if (muted) stopSpeech(); };
-        capEl = root.querySelector('#n4Cap');
+        root.querySelector('#n4Mute').onclick = e => { muted = !muted; e.target.textContent = muted ? T.btn.off : T.btn.on; if (muted) stopSpeech(); };
         const rsel = root.querySelector('#n4Rate');
         rsel.value = String([0.65, 0.85, 1, 1.2].reduce((a, b) => Math.abs(b - rate) < Math.abs(a - rate) ? b : a));
         rsel.onchange = () => { rate = parseFloat(rsel.value); try { localStorage.setItem(RKEY, String(rate)); } catch (e) { /* storage blocked */ } };
-        root.querySelector('#n4Test').onclick = () => { stopSpeech(); if (muted) { muted = false; root.querySelector('#n4Mute').textContent = '🔊 Sound on'; } speak('Hello. Can you hear me clearly? This is the Indian English voice. Up, down, left and right.'); };
+        root.querySelector('#n4Test').onclick = () => { stopSpeech(); if (muted) { muted = false; root.querySelector('#n4Mute').textContent = T.btn.on; } speak(T.say.test); };
         const vsel = root.querySelector('#n4Voice');
-        fillVoiceSelect(vsel);
-        if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => { if (vsel.isConnected) fillVoiceSelect(vsel); };
-        vsel.onchange = () => { setSaved(vsel.value); stopSpeech(); const t = vsel.options[vsel.selectedIndex].text.replace(/^★ /, ''); speak('Hello, this is the new voice.'); };
+        fillVoiceSelect(vsel, hintEl);
+        if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => { if (vsel.isConnected) fillVoiceSelect(vsel, hintEl); };
+        vsel.onchange = () => { setSaved(vsel.value); stopSpeech(); speak(T.say.newVoice); };
         root.querySelector('#n4Clear').onclick = () => { tour = false; token++; stopSpeech(); if (o.onClear) o.onClear(); };
         select(sel.r, sel.c);
     }
