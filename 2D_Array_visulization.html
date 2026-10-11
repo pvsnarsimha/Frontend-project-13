@@ -120887,6 +120887,7 @@ window.Neighbors4DViz = (function () {
             rates: ['Speed: Very slow', 'Speed: Slow (clear)', 'Speed: Normal', 'Speed: Fast'],
             voiceAuto: 'Voice: Indian English (auto)', voiceNone: 'Voice: Indian English (not found, default)',
             hint: '', chrome: '', empty: 'empty',
+            online: { enable: '☁ Enable online voice', disable: 'Turn online voice off', on: '☁ Online voice is ON (needs internet).', fail: 'Could not reach the online voice. Check your internet connection.' },
             say: {
                 intro: (r, c, v) => [`Selected cell: row ${r}, column ${c}.`, `Its value is ${v}.`, 'Let us find the four cells touching it.'],
                 dir: (d, nr, nc, v) => `${d.phrase}: ${d.move}, row ${nr}, column ${nc}. The value is ${v}.`,
@@ -120920,7 +120921,8 @@ window.Neighbors4DViz = (function () {
             rates: ['వేగం: చాలా నెమ్మదిగా', 'వేగం: నెమ్మదిగా (స్పష్టం)', 'వేగం: మామూలు', 'వేగం: వేగంగా'],
             voiceAuto: 'వాయిస్: తెలుగు (ఆటో)', voiceNone: 'వాయిస్: తెలుగు (ఈ పరికరంలో లేదు)',
             hint: 'ఈ పరికరంలో తెలుగు వాయిస్ లేదు, కాబట్టి శబ్దం రాదు కానీ తెలుగు క్యాప్షన్లు కనిపిస్తాయి. వాయిస్ కోసం Microsoft Edge వాడండి ("Shruti Online (Natural) – Telugu") లేదా Windows: Settings → Time & language → Speech → Add voices → Telugu.',
-            chrome: 'Chrome లో Windows లో తెలుగు వాయిస్ సాధారణంగా ఉండదు. ఈ పేజీని Microsoft Edge లో తెరవండి (అక్కడ తెలుగు వాయిస్ ఉంటుంది). ',
+            chrome: 'Chrome లో Windows లో తెలుగు వాయిస్ సాధారణంగా ఉండదు. ఈ పేజీని Microsoft Edge లో తెరవండి (అక్కడ తెలుగు వాయిస్ ఉంటుంది), లేదా ఆన్‌లైన్ వాయిస్ ఆన్ చేయండి. ',
+            online: { enable: '☁ ఆన్‌లైన్ వాయిస్ ఆన్ చేయండి', disable: 'ఆన్‌లైన్ వాయిస్ ఆఫ్ చేయండి', on: '☁ ఆన్‌లైన్ వాయిస్ ఆన్‌లో ఉంది (ఇంటర్నెట్ కావాలి).', fail: 'ఆన్‌లైన్ వాయిస్ అందలేదు. ఇంటర్నెట్ కనెక్షన్ చూడండి.' },
             empty: 'ఖాళీ',
             say: {
                 intro: (r, c, v) => [`ఎంచుకున్న గడి: రో ${r}, కాలమ్ ${c}.`, `దాని విలువ ${v}.`, 'ఇప్పుడు దీన్ని తాకే నాలుగు గడులను కనుగొందాం.'],
@@ -120955,7 +120957,8 @@ window.Neighbors4DViz = (function () {
             rates: ['गति: बहुत धीमी', 'गति: धीमी (साफ़)', 'गति: सामान्य', 'गति: तेज़'],
             voiceAuto: 'आवाज़: हिन्दी (ऑटो)', voiceNone: 'आवाज़: हिन्दी (इस डिवाइस में नहीं)',
             hint: 'इस डिवाइस में हिन्दी आवाज़ नहीं मिली, इसलिए आवाज़ नहीं आएगी लेकिन हिन्दी कैप्शन दिखेंगे। आवाज़ के लिए Microsoft Edge इस्तेमाल करें ("Swara Online (Natural) – Hindi") या Windows: Settings → Time & language → Speech → Add voices → Hindi।',
-            chrome: 'इस Chrome में हिन्दी आवाज़ नहीं मिली। इस पेज को Microsoft Edge में खोलें (वहाँ हिन्दी आवाज़ मिलती है)। ',
+            chrome: 'इस Chrome में हिन्दी आवाज़ नहीं मिली। इस पेज को Microsoft Edge में खोलें (वहाँ हिन्दी आवाज़ मिलती है), या ऑनलाइन आवाज़ चालू करें। ',
+            online: { enable: '☁ ऑनलाइन आवाज़ चालू करें', disable: 'ऑनलाइन आवाज़ बंद करें', on: '☁ ऑनलाइन आवाज़ चालू है (इंटरनेट चाहिए)।', fail: 'ऑनलाइन आवाज़ नहीं मिली। इंटरनेट कनेक्शन जाँचें।' },
             empty: 'खाली',
             say: {
                 intro: (r, c, v) => [`चुना हुआ सेल: रो ${r}, कॉलम ${c}।`, `इसकी वैल्यू ${v} है।`, 'अब इसे छूने वाले चार सेल ढूँढते हैं।'],
@@ -120998,8 +121001,27 @@ window.Neighbors4DViz = (function () {
         const pool = lang === 'en' ? vs.filter(isIN) : vs;
         return pool.find(v => GOOD.test(v.name)) || pool[0] || null;
     }
+    let onlineOn = false, onlineFailed = false;
+    try { onlineOn = localStorage.getItem('n4Online') === '1'; } catch (e) { /* storage blocked */ }
+    const setOnline = v => { onlineOn = v; onlineFailed = false; try { localStorage.setItem('n4Online', v ? '1' : '0'); } catch (e) { /* storage blocked */ } };
+    // Optional cloud voice for Telugu / Hindi when the device has none. Sends only the short sentence being spoken to Google.
+    function playOnline(sentence) {
+        return new Promise(resolve => {
+            let done = false;
+            const fin = () => { if (!done) { done = true; resolve(); } };
+            try {
+                const a = new Audio('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=' + lang + '&q=' + encodeURIComponent(sentence.slice(0, 190)));
+                a.playbackRate = Math.max(0.6, Math.min(1.4, rate / 0.9));
+                a.onended = fin;
+                a.onerror = () => { onlineFailed = true; showHint(); fin(); };
+                const pr = a.play();
+                if (pr && pr.catch) pr.catch(() => { onlineFailed = true; showHint(); fin(); });
+                setTimeout(fin, 15000);
+            } catch (e) { onlineFailed = true; fin(); }
+        });
+    }
     const caption = t => { if (capEl && capEl.isConnected) capEl.textContent = t; };
-    const stopSpeech = () => { spGen++; if (window.speechSynthesis) window.speechSynthesis.cancel(); };
+    const stopSpeech = () => { spGen++; if (window.speechSynthesis) window.speechSynthesis.cancel(); document.querySelectorAll('audio').forEach(a => a.pause()); };
 
     function speakOne(sentence) {
         return new Promise(resolve => {
@@ -121011,6 +121033,7 @@ window.Neighbors4DViz = (function () {
             const finMin = () => { const w = est * 0.5 - (Date.now() - t0); w > 0 ? setTimeout(fin, w) : fin(); };
             const v = pickVoice();
             // Telugu / Hindi need a matching voice, otherwise an English voice would mispronounce the script
+            if (!muted && lang !== 'en' && !v && onlineOn && !onlineFailed) { playOnline(sentence).then(() => setTimeout(fin, 100)); return; }
             const canSpeak = !muted && synth && window.SpeechSynthesisUtterance && (lang === 'en' || v);
             if (canSpeak) {
                 try {
@@ -121041,6 +121064,18 @@ window.Neighbors4DViz = (function () {
         }
     }
 
+    let hintElRef = null;
+    function showHint() {
+        const hintEl = hintElRef; if (!hintEl || !hintEl.isConnected) return;
+        const T = STR[lang], missing = lang !== 'en' && !voicesFor().length;
+        hintEl.style.display = missing ? 'block' : 'none';
+        if (!missing) { hintEl.innerHTML = ''; return; }
+        const isChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent);
+        const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        hintEl.innerHTML = onlineOn && !onlineFailed
+            ? `${esc(T.online.on)} <button data-a="online" style="margin-left:8px;border:0;border-radius:999px;padding:3px 12px;font-weight:700;cursor:pointer">${esc(T.online.disable)}</button>`
+            : `${onlineFailed ? esc(T.online.fail) + '<br>' : ''}${esc((isChrome ? T.chrome : '') + T.hint)} <button data-a="online" style="margin-top:6px;border:0;border-radius:999px;padding:4px 14px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer">${esc(T.online.enable)}</button>`;
+    }
     function fillVoiceSelect(sel, hintEl) {
         const T = STR[lang];
         const vs = voicesFor().sort((a, b) => (isIN(b) - isIN(a)) || a.name.localeCompare(b.name));
@@ -121048,12 +121083,7 @@ window.Neighbors4DViz = (function () {
             vs.map(v => `<option value="${v.name.replace(/"/g, '&quot;')}">${isIN(v) ? '★ ' : ''}${v.name} (${v.lang})</option>`).join('');
         const saved = getSaved();
         sel.value = saved && vs.some(v => v.name === saved) ? saved : '';
-        if (hintEl) {
-            const missing = lang !== 'en' && !vs.length;
-            hintEl.style.display = missing ? 'block' : 'none';
-            const isChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent);
-            hintEl.textContent = missing ? (isChrome ? T.chrome : '') + T.hint : '';
-        }
+        if (hintEl) { hintElRef = hintEl; showHint(); }
     }
 
     // ---------------- view ----------------
@@ -121166,6 +121196,7 @@ window.Neighbors4DViz = (function () {
         }
         capEl = root.querySelector('#n4Cap');
         const hintEl = root.querySelector('#n4Hint');
+        hintEl.onclick = e => { if (e.target.dataset && e.target.dataset.a === 'online') { setOnline(!onlineOn); showHint(); if (onlineOn) { stopSpeech(); speak(T.say.test); } else stopSpeech(); } };
         root.querySelector('#n4Lang').onchange = e => {
             lang = e.target.value; try { localStorage.setItem('n4Lang', lang); } catch (x) { /* storage blocked */ }
             tour = false; token++; stopSpeech();
